@@ -27,6 +27,8 @@ Chưa có khoá Claude thì trang vẫn chạy, thầy rút quẻ từ kho câu 
 | `lib/store.js` | Bộ đếm và câu phán đã nhớ: Redis (Upstash) nếu có, không thì lưu trong bộ nhớ. |
 | `public/js/rules.js` | Kho câu phán, phân loại câu hỏi, các câu thầy không phán bừa (y tế, pháp luật, tiền lớn, bạo lực, khủng hoảng). |
 | `public/js/app.js` | Luồng hỏi và phán, animation, thẻ chia sẻ. |
+| `public/js/sound.js` | Hiệu ứng tổng hợp bằng Web Audio, nhạc nền, nút loa. |
+| `public/audio/nhac-nen.mp3` | Nhạc nền 慢品一盏茶 (bản có bộ gõ). Thay file cùng tên là đổi nhạc; xoá file thì trang tự quay về tiếng nền tổng hợp. |
 | `test/` | `npm test`. |
 
 ## Chi phí và các chốt chặn

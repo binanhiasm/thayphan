@@ -19,7 +19,7 @@ const store = storeFromEnv();
 const limits = limitsFromEnv();
 const handlePhan = createPhanHandler({ store, ask, limits, secret: secretFromEnv() });
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".gif": "image/gif" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".gif": "image/gif", ".mp3": "audio/mpeg" };
 
 function text(res, status, body) {
   res.writeHead(status, { "content-type": "text/plain; charset=utf-8", "x-content-type-options": "nosniff" });
@@ -33,7 +33,18 @@ async function serveStatic(req, res) {
   if (!file.startsWith(PUBLIC + path.sep)) return text(res, 403, "Forbidden");
   try {
     const data = await fs.readFile(file);
-    res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" });
+    // Safari cần trả theo đoạn (Range) mới chịu phát nhạc.
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+    if (m && (m[1] || m[2])) {
+      const size = data.length;
+      let start = m[1] ? Number(m[1]) : size - Number(m[2]);
+      let end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+      if (start < 0) start = 0;
+      if (start > end || start >= size) { res.writeHead(416, { "content-range": `bytes */${size}` }); return res.end(); }
+      res.writeHead(206, { "content-type": TYPES[path.extname(file)] || "application/octet-stream", "content-range": `bytes ${start}-${end}/${size}`, "accept-ranges": "bytes", "content-length": end - start + 1, "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" });
+      return res.end(data.subarray(start, end + 1));
+    }
+    res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream", "cache-control": "public, max-age=300", "accept-ranges": "bytes", "x-content-type-options": "nosniff" });
     res.end(data);
   } catch { text(res, 404, "Không tìm thấy"); }
 }
