@@ -2,7 +2,7 @@
 // Trình duyệt chỉ cho phát tiếng sau lần chạm hoặc gõ phím đầu tiên, nên mọi thứ khởi động ở unlock().
 // Người dùng tắt/bật bằng nút loa; lựa chọn được nhớ trên máy.
 
-let ctx = null, master = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
+let ctx = null, master = null, sfxBus = null, sfxVerb = null, ambBus = null, noiseBuf = null, brownBuf = null;
 let on = readPref();
 
 function readPref() { try { return localStorage.getItem("tp-sound") !== "off"; } catch { return true; } }
@@ -25,12 +25,29 @@ function setup() {
   ctx = new AC();
   master = ctx.createGain(); master.gain.value = on ? 0.9 : 0; master.connect(ctx.destination);
   // Nén nhẹ để tiếng cộp không bị vỡ trên loa điện thoại.
-  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(master);
-  sfxBus = ctx.createGain(); sfxBus.connect(comp);
+  const comp = mixChain(ctx, master);
+  wireSfx(comp);
   ambBus = ctx.createGain(); ambBus.gain.value = 0; ambBus.connect(comp);
   noiseBuf = makeNoise(1.5, false);
   brownBuf = makeNoise(6, true);
   return true;
+}
+
+// Nén nhẹ rồi chặn đỉnh, để trống và cồng không làm vỡ tiếng trên loa điện thoại.
+function mixChain(c, out) {
+  const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.2;
+  const lim = c.createDynamicsCompressor(); lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.1;
+  const trim = c.createGain(); trim.gain.value = 0.85;
+  comp.connect(lim).connect(trim).connect(out);
+  return comp;
+}
+
+// Bus hiệu ứng: tiếng khô + một lớp vang riêng cho cồng và trống.
+function wireSfx(out) {
+  sfxBus = ctx.createGain(); sfxBus.connect(out);
+  const v = reverb(ctx, 3.8), vg = ctx.createGain(); vg.gain.value = 0.5;
+  v.connect(vg).connect(out);
+  sfxVerb = v;
 }
 
 // ---------- viên gạch dựng tiếng ----------
@@ -82,6 +99,53 @@ const S = {
     noise({ t, peak: 0.55, decay: 0.09, type: "lowpass", f: 900 });
     tone({ type: "triangle", f: 240, f2: 200, t, peak: 0.3, decay: 0.12 });
     noise({ t: t + 0.01, peak: 0.08, decay: 0.25, type: "bandpass", f: 3200, q: 0.8 });
+  },
+  // Trống lớn (kiểu taiko): thân trầm + mặt da.
+  drum(t = now(), peak = 1, f = 82) {
+    tone({ f, f2: f * 0.58, t, peak, attack: 0.003, decay: 0.42 });
+    tone({ type: "triangle", f: f * 1.85, f2: f * 1.1, t, peak: peak * 0.35, decay: 0.16 });
+    noise({ t, peak: peak * 0.35, decay: 0.06, type: "lowpass", f: 320 });
+    tone({ f, f2: f * 0.6, t, peak: peak * 0.4, attack: 0.003, decay: 0.6, out: sfxVerb });
+  },
+  // Cồng đồng lớn: bồi âm lệch, các bồi âm giữa nở ra sau tiếng đánh, ngân dài.
+  gong(t = now(), peak = 0.32, f = 98) {
+    const parts = [[1, 1, 7], [1.52, 0.6, 5.5], [2.11, 0.5, 4.5], [2.67, 0.38, 3.8], [3.4, 0.3, 3], [4.3, 0.2, 2.4], [5.6, 0.14, 1.8], [7.2, 0.1, 1.2]];
+    parts.forEach(([m, a, dec], i) => {
+      [sfxBus, sfxVerb].forEach((out, j) => {
+        const o = ctx.createOscillator(), g = ctx.createGain(), p = peak * a * (j ? 0.6 : 1);
+        o.frequency.setValueAtTime(f * m * 1.025, t); o.frequency.exponentialRampToValueAtTime(f * m, t + 0.45);
+        const bloom = i >= 2 && i <= 5 ? 0.25 : 0.004;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(i >= 2 && i <= 5 ? p * 0.35 : p, t + 0.004);
+        if (bloom > 0.01) g.gain.exponentialRampToValueAtTime(p, t + bloom);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+        o.connect(g).connect(out); o.start(t); o.stop(t + dec + 0.05);
+      });
+    });
+    noise({ t, peak: peak * 0.18, attack: 0.08, decay: 2.4, f: 4200, q: 0.6, out: sfxVerb });
+  },
+  // Khoảnh khắc phán: trống dồn + xèo dâng lên (0 → 0,9s), rồi trống cái + cồng + cộp con dấu.
+  verdict(t = now()) {
+    const hit = 0.92;
+    // Trống dồn: nhanh dần, to dần.
+    let tt = t, gap = 0.17;
+    for (let k = 0; k < 9 && tt < t + hit - 0.06; k++) {
+      S.drum(tt, 0.18 + k * 0.06, 118 - k * 3);
+      tt += gap; gap *= 0.84;
+    }
+    // Xèo dâng lên rồi cắt đúng lúc dấu đập xuống.
+    noise({ t, peak: 0.16, attack: hit - 0.02, decay: 0.03, type: "highpass", f: 3800, f2: 6500, q: 0.5 });
+    tone({ f: 46, t, peak: 0.25, attack: hit - 0.05, decay: 0.08 }); // nền rung dâng lên
+    // Đập xuống.
+    const T = t + hit;
+    S.drum(T, 0.72, 64);
+    S.gong(T + 0.015);
+    S.stamp(T);
+    // Tiếng nền lặng xuống rồi trở lại, cho khoảnh khắc trang nghiêm.
+    if (ambStarted && ambBus) {
+      ambBus.gain.cancelScheduledValues(t);
+      ambBus.gain.setTargetAtTime(0.08, t, 0.15);
+      ambBus.gain.setTargetAtTime(0.32, T + 2.4, 1.6);
+    }
   },
   // Quạt gõ bàn: tiếng chát gỗ sắc.
   clack(t = now()) {
@@ -276,6 +340,22 @@ export function renderAmbiencePreview(c, seconds) {
     // Bản nghe thử ngắn nên rút nhịp lại một nửa để nghe đủ các lớp.
     for (let t = l.first / 2000; t < seconds - 5; t += (l.min + Math.random() * (l.max - l.min)) / 2000) l.play(c, bus, t);
   });
+}
+
+// Bản nghe thử khoảnh khắc phán, có tiếng nền bên dưới.
+export function renderVerdictPreview(c, at = 2.5) {
+  const saved = { ctx, sfxBus, sfxVerb, ambBus, noiseBuf, ambStarted };
+  ctx = c;
+  const out = c.createGain(); out.gain.value = 0.9; out.connect(c.destination);
+  const comp = mixChain(c, out);
+  wireSfx(comp);
+  noiseBuf = makeNoise(1.5, false);
+  ambBus = c.createGain(); ambBus.gain.value = 0.32; ambBus.connect(comp);
+  const bus = ambienceGraph(c, ambBus); drone(c, bus, 0); windChimes(c, bus, 0.4);
+  ambStarted = true;
+  for (let i = 0; i < 3; i++) S.mo(at - 2.1 + i * 0.55, i === 2);
+  S.verdict(at);
+  ({ ctx, sfxBus, sfxVerb, ambBus, noiseBuf, ambStarted } = saved);
 }
 
 // ---------- API cho app.js ----------
