@@ -80,6 +80,10 @@ textarea::placeholder{color:rgba(201,168,130,.6)}
 .btn.gold{background:linear-gradient(135deg,var(--gold),#b8903d);border:0;color:#3a1d10;box-shadow:0 4px 14px rgba(227,187,99,.3)}
 .link{display:block;width:100%;margin-top:8px;background:none;border:0;color:rgba(201,168,130,.8);font:italic 13px var(--body);cursor:pointer;padding:6px}
 button:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.snd{position:absolute;z-index:6;top:calc(14px + env(safe-area-inset-top,0px));left:max(66px,env(safe-area-inset-left,0px));width:36px;height:36px;display:grid;place-items:center;
+  border:1px solid rgba(227,187,99,.25);border-radius:50%;background:rgba(20,10,7,.45);color:var(--gold);opacity:.8;cursor:pointer;padding:0}
+.snd:hover{opacity:1}.snd:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.snd .x{display:none}.snd.off .x{display:block}.snd.off .w{display:none}.snd.off{opacity:.5}
 .tally{position:absolute;z-index:5;top:calc(22px + env(safe-area-inset-top,0px));right:max(70px,env(safe-area-inset-right,0px));font-size:11px;color:var(--smoke);opacity:.85}
 .help{border-radius:14px;padding:16px;text-align:center;background:rgba(241,226,189,.06);border:1px solid rgba(201,168,130,.35)}
 .help p{margin:0;font-size:16px;line-height:1.55;color:var(--paper)}

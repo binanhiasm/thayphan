@@ -1,4 +1,5 @@
 import { safety, makePicker, isCloser, CLOSERS, normKey, HOTLINE } from "./rules.js";
+import { sound } from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), panel = $("panel"), modal = $("modal");
@@ -53,6 +54,7 @@ let sipping = false;
 async function sip() {
   if (sipping || reduce.matches) return; sipping = true;
   const g = $("sip");
+  sound.play("slurp", 1.0);
   const a = g.animate([
     { opacity: 0, transform: "translate(100px,174px) rotate(0deg)" },
     { opacity: 1, transform: "translate(100px,170px) rotate(0deg)", offset: .12 },
@@ -72,11 +74,13 @@ function frown(level) {
     $("browL").getAnimations().forEach((a) => a.cancel()); $("browR").getAnimations().forEach((a) => a.cancel());
     $("anger").setAttribute("opacity", "0"); return;
   }
+  sound.play("hum");
   anim($("browL"), [{ transform: "rotate(0deg)" }, { transform: "translateY(1px) rotate(16deg)" }], { duration: 260, easing: "ease-out", ...F });
   anim($("browR"), [{ transform: "rotate(0deg)" }, { transform: "translateY(1px) rotate(-16deg)" }], { duration: 260, easing: "ease-out", ...F });
   if (reduce.matches) { $("browL").style.transform = "translateY(1px) rotate(16deg)"; $("browR").style.transform = "translateY(1px) rotate(-16deg)"; }
 }
 function sigh() {
+  sound.play("sigh", 0.15);
   anim($("master"), [{ transform: "translateY(0)" }, { transform: "translateY(4px)", offset: .45 }, { transform: "translateY(0)" }], { duration: 1100, easing: "ease-in-out" });
   anim($("puff"), [{ opacity: .75, transform: "scale(1)" }, { opacity: 0, transform: "translate(20px,-4px) scale(3)" }], { duration: 1000, delay: 250, easing: "ease-out" });
   anim($("potpuff"), [{ opacity: .9, transform: "translateY(0) scale(1)" }, { opacity: 0, transform: "translateY(-90px) scale(4)" }], { duration: 1100, delay: 350, easing: "ease-out" });
@@ -87,10 +91,11 @@ const shake = (px = 3) => anim(app, [{ transform: "translate(0,0)" }, { transfor
 async function fanSlam() {
   if (reduce.matches) return;
   const fan = $("fan"); fan.setAttribute("opacity", "1");
+  sound.play("whoosh", 0, 0.3, 400, 1400, 0.14);
   await fan.animate([{ opacity: 0, transform: "rotate(-120deg)" }, { opacity: 1, transform: "rotate(-150deg)" }], { duration: 300, easing: "ease-out", ...F }).finished;
   await wait(260);
   await fan.animate([{ opacity: 1, transform: "rotate(-150deg)" }, { opacity: 1, transform: "rotate(-18deg)" }], { duration: 150, easing: "cubic-bezier(.6,0,1,.6)", ...F }).finished;
-  shake(4); buzz(25);
+  sound.play("clack"); shake(4); buzz(25);
   document.querySelectorAll(".cup,.pot").forEach((c) => c.animate([{ translate: "0 0" }, { translate: "0 -6px" }, { translate: "0 0" }], { duration: 260, easing: "ease-out" }));
   await wait(550);
   fan.animate([{ opacity: 1, transform: "rotate(-18deg)" }, { opacity: 0, transform: "rotate(-30deg)" }], { duration: 300, ...F });
@@ -100,7 +105,7 @@ function buzz(ms) { if (stamps > 3) return; try { navigator.vibrate?.(ms); } cat
 // Chạm vào thầy
 $("master").addEventListener("click", () => {
   if (view !== "idle" || reduce.matches) return;
-  eyes.open(); setTimeout(eyes.close, 900);
+  eyes.open(); setTimeout(eyes.close, 900); sound.play("bell", 0, 1760, 0.08);
   const ta = $("q"); if (ta && !ta.value) { ta.placeholder = "Hỏi đi con. Thầy nghe."; ta.focus(); }
 });
 
@@ -171,6 +176,7 @@ async function ask(q, again) {
   panel.innerHTML = `<div class="view"><p class="asked">Con hỏi:</p><p class="q">“${esc(q)}”</p><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><p class="hint" style="margin-top:10px">${n >= 2 ? "Thầy thở dài…" : n === 1 ? "Lại hỏi nữa hả con…" : "Thầy đang ngẫm…"}</p></div>`;
   if (n === 1) frown(1);
   if (n >= 2) { frown(1); sigh(); }
+  else for (let i = 0; i < (again ? 2 : 3); i++) sound.play("mo", 0.25 + i * 0.55, i === 2);
 
   const [v] = await Promise.all([s ? Promise.resolve(s.line) : getVerdict(q), wait(again ? 1300 : 1900)]);
   verdict = v;
@@ -198,10 +204,11 @@ function reveal() {
   $("again").onclick = () => ask(lastQ, true);
   $("share").onclick = card;
   $("new").onclick = idle;
-  if (reduce.matches) { seal.hidden = false; acts.classList.remove("wait"); return; }
+  if (reduce.matches) { seal.hidden = false; acts.classList.remove("wait"); sound.play("stamp"); return; }
 
   // A+B: chữ hiện mờ → thầy mở mắt → con dấu rơi → cộp
   vt.animate([{ opacity: 0, filter: "blur(6px)" }, { opacity: .35, filter: "blur(4px)" }], { duration: 260, ...F });
+  sound.play("bell", 0.22); sound.play("whoosh", 0.5); sound.play("stamp", 0.92);
   setTimeout(() => {
     eyes.open();
     $("aura").animate([{ opacity: 0 }, { opacity: 1, offset: .25 }, { opacity: .35 }, { opacity: 0 }], { duration: 1600, easing: "ease-out" });
@@ -268,6 +275,7 @@ async function makeCard() {
   return c;
 }
 async function card() {
+  sound.play("rustle");
   const c = await makeCard();
   const url = c.toDataURL("image/png");
   const blob = await new Promise((r) => c.toBlob(r, "image/png"));
@@ -296,6 +304,12 @@ setInterval(() => {
   const typing = ta && document.activeElement === ta && ta.value;
   if (view === "idle" && !typing && !document.hidden && Date.now() - lastActivity > 12000) { lastActivity = Date.now(); sip(); }
 }, 1000);
-["pointerdown", "keydown"].forEach((ev) => addEventListener(ev, () => (lastActivity = Date.now()), { passive: true }));
+["pointerdown", "keydown"].forEach((ev) => addEventListener(ev, () => { lastActivity = Date.now(); sound.unlock(); }, { passive: true }));
+
+// Nút loa: bật/tắt tiếng quán trà.
+const snd = $("snd");
+const paintSnd = () => { snd.setAttribute("aria-pressed", String(sound.on)); snd.setAttribute("aria-label", sound.on ? "Tắt tiếng" : "Bật tiếng"); snd.classList.toggle("off", !sound.on); };
+snd.onclick = () => { sound.toggle(); paintSnd(); };
+paintSnd();
 
 tally(); idle();
