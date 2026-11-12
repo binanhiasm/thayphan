@@ -49,7 +49,7 @@ Chốt cuối cùng nên đặt thêm: giới hạn chi tiêu theo tháng trong 
 
 ## Đưa lên Vercel
 
-1. Đưa thư mục `web/` lên GitHub, vào Vercel chọn Import, Root Directory là `web`.
+1. Vào Vercel chọn Import repo `binanhiasm/thayphan`, Root Directory để mặc định (`.`). Từ đó mỗi lần push lên `main` Vercel tự deploy, nhánh khác và PR có bản xem thử riêng.
 2. Vào Storage (hoặc Marketplace) của dự án, gắn **Upstash Redis**. Vercel tự điền biến kết nối. Thiếu Redis thì các giới hạn chỉ tính riêng từng lần chạy hàm, gần như vô dụng.
 3. Settings → Environment Variables: thêm `ANTHROPIC_API_KEY` và các biến chốt chặn nếu muốn đổi mặc định.
 4. Deploy. Trang tĩnh nằm trên CDN, API chạy ở vùng mặc định của Vercel (Mỹ), gần máy chủ Claude.
