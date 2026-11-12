@@ -100,51 +100,74 @@ const S = {
     tone({ type: "triangle", f: 240, f2: 200, t, peak: 0.3, decay: 0.12 });
     noise({ t: t + 0.01, peak: 0.08, decay: 0.25, type: "bandpass", f: 3200, q: 0.8 });
   },
-  // Trống lớn (kiểu taiko): thân trầm + mặt da.
-  drum(t = now(), peak = 1, f = 82) {
-    tone({ f, f2: f * 0.58, t, peak, attack: 0.003, decay: 0.42 });
-    tone({ type: "triangle", f: f * 1.85, f2: f * 1.1, t, peak: peak * 0.35, decay: 0.16 });
-    noise({ t, peak: peak * 0.35, decay: 0.06, type: "lowpass", f: 320 });
-    tone({ f, f2: f * 0.6, t, peak: peak * 0.4, attack: 0.003, decay: 0.6, out: sfxVerb });
+  // Trống lớn (kiểu taiko): thân trầm + mặt da + vang.
+  drum(t = now(), peak = 1, f = 70) {
+    tone({ f: f * 1.6, f2: f, t, peak, attack: 0.002, decay: 0.08 });          // cú nện đầu, cao độ rơi nhanh
+    tone({ f, f2: f * 0.7, t: t + 0.004, peak: peak * 0.9, attack: 0.004, decay: 0.7 }); // thân trống
+    tone({ type: "triangle", f: f * 2.3, f2: f * 1.2, t, peak: peak * 0.3, decay: 0.12 });
+    noise({ t, peak: peak * 0.45, decay: 0.05, type: "lowpass", f: 600 });     // mặt da
+    noise({ t, peak: peak * 0.12, decay: 0.03, type: "highpass", f: 2500 });   // dùi chạm
+    tone({ f, f2: f * 0.7, t, peak: peak * 0.6, attack: 0.004, decay: 1.2, out: sfxVerb });
   },
-  // Cồng đồng lớn: bồi âm lệch, các bồi âm giữa nở ra sau tiếng đánh, ngân dài.
-  gong(t = now(), peak = 0.32, f = 98) {
-    const parts = [[1, 1, 7], [1.52, 0.6, 5.5], [2.11, 0.5, 4.5], [2.67, 0.38, 3.8], [3.4, 0.3, 3], [4.3, 0.2, 2.4], [5.6, 0.14, 1.8], [7.2, 0.1, 1.2]];
-    parts.forEach(([m, a, dec], i) => {
-      [sfxBus, sfxVerb].forEach((out, j) => {
-        const o = ctx.createOscillator(), g = ctx.createGain(), p = peak * a * (j ? 0.6 : 1);
-        o.frequency.setValueAtTime(f * m * 1.025, t); o.frequency.exponentialRampToValueAtTime(f * m, t + 0.45);
-        const bloom = i >= 2 && i <= 5 ? 0.25 : 0.004;
-        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(i >= 2 && i <= 5 ? p * 0.35 : p, t + 0.004);
-        if (bloom > 0.01) g.gain.exponentialRampToValueAtTime(p, t + bloom);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
-        o.connect(g).connect(out); o.start(t); o.stop(t + dec + 0.05);
-      });
+  // Hợp âm đồng trầm (kiểu nhạc phim): chồng sóng răng cưa lệch nhẹ, bộ lọc mở rồi khép.
+  brass(t = now(), dur = 2.8, peak = 0.22, open = 2600, rise = 0) {
+    const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+    lp.type = "lowpass"; lp.Q.value = 1.2;
+    if (rise) { lp.frequency.setValueAtTime(180, t); lp.frequency.exponentialRampToValueAtTime(open, t + rise); }
+    else { lp.frequency.setValueAtTime(open, t); lp.frequency.exponentialRampToValueAtTime(320, t + dur * 0.8); }
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + (rise || 0.03));
+    if (!rise) g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    // D1, D2, A2, D3, A3: quãng năm rỗng, nghe cổ và trang nghiêm.
+    [36.71, 73.42, 110, 146.83, 220].forEach((f, i) => [-7, 7].forEach((cents) => {
+      const o = ctx.createOscillator(); o.type = i === 0 ? "sine" : "sawtooth";
+      o.frequency.value = f; o.detune.value = cents;
+      const og = ctx.createGain(); og.gain.value = [0.9, 0.5, 0.4, 0.3, 0.18][i];
+      o.connect(og).connect(lp); o.start(t); o.stop(t + (rise ? rise + 0.05 : dur + 0.1));
+    }));
+    lp.connect(g); g.connect(sfxBus);
+    const send = ctx.createGain(); send.gain.value = 0.7; g.connect(send).connect(sfxVerb);
+    return g;
+  },
+  // Cồng đồng lớn: tổng hợp FM cho chất kim loại, cao độ trùng xuống, xèo chát, ngân dài.
+  gong(t = now(), peak = 0.3, f = 110) {
+    [[1, 1.41, 9, 7], [1.5, 2.37, 6, 5], [2.13, 3.17, 4, 3.5]].forEach(([cm, mm, index, dec], i) => {
+      const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+      const fc = f * cm;
+      car.frequency.setValueAtTime(fc * 1.06, t); car.frequency.exponentialRampToValueAtTime(fc, t + 0.6);
+      mod.frequency.setValueAtTime(fc * mm * 1.06, t); mod.frequency.exponentialRampToValueAtTime(fc * mm, t + 0.6);
+      mg.gain.setValueAtTime(fc * index, t); mg.gain.exponentialRampToValueAtTime(fc * 0.4, t + dec * 0.6);
+      mod.connect(mg).connect(car.frequency);
+      const p = peak * [1, 0.6, 0.35][i];
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+      car.connect(g); g.connect(sfxBus);
+      const send = ctx.createGain(); send.gain.value = 0.8; g.connect(send).connect(sfxVerb);
+      car.start(t); mod.start(t); car.stop(t + dec + 0.1); mod.stop(t + dec + 0.1);
     });
-    noise({ t, peak: peak * 0.18, attack: 0.08, decay: 2.4, f: 4200, q: 0.6, out: sfxVerb });
+    noise({ t, peak: peak * 0.55, decay: 0.35, f: 5200, q: 0.5 });             // xèo chát lúc đánh
+    noise({ t, peak: peak * 0.2, attack: 0.05, decay: 3.5, f: 3600, q: 0.7, out: sfxVerb }); // xèo ngân
   },
-  // Khoảnh khắc phán: trống dồn + xèo dâng lên (0 → 0,9s), rồi trống cái + cồng + cộp con dấu.
+  // Khoảnh khắc phán. Mốc 0,92s là lúc con dấu đập xuống trong animation.
   verdict(t = now()) {
-    const hit = 0.92;
-    // Trống dồn: nhanh dần, to dần.
-    let tt = t, gap = 0.17;
-    for (let k = 0; k < 9 && tt < t + hit - 0.06; k++) {
-      S.drum(tt, 0.18 + k * 0.06, 118 - k * 3);
-      tt += gap; gap *= 0.84;
-    }
-    // Xèo dâng lên rồi cắt đúng lúc dấu đập xuống.
-    noise({ t, peak: 0.16, attack: hit - 0.02, decay: 0.03, type: "highpass", f: 3800, f2: 6500, q: 0.5 });
-    tone({ f: 46, t, peak: 0.25, attack: hit - 0.05, decay: 0.08 }); // nền rung dâng lên
-    // Đập xuống.
-    const T = t + hit;
-    S.drum(T, 0.72, 64);
-    S.gong(T + 0.015);
+    const hit = 0.92, T = t + hit;
+    // 1. Dồn: hợp âm đồng dâng lên + trống dồn nhanh dần + xèo dâng, cắt lặng 60ms trước khi đập.
+    const swell = S.brass(t, 0, 0.14, 2200, hit - 0.06);
+    swell.gain.setValueAtTime(0.14, T - 0.06); swell.gain.exponentialRampToValueAtTime(0.0001, T - 0.03);
+    let tt = t + 0.05, gap = 0.16;
+    for (let k = 0; tt < T - 0.1; k++) { S.drum(tt, 0.16 + k * 0.05, 96 - k * 2); tt += gap; gap *= 0.82; }
+    noise({ t, peak: 0.13, attack: hit - 0.08, decay: 0.02, type: "highpass", f: 3000, f2: 7000, q: 0.5 });
+    // 2. Đập: ba trống cái cùng lúc (lệch vài ms cho dày), hợp âm đồng, cồng, cộp con dấu.
+    S.drum(T, 0.8, 58); S.drum(T + 0.012, 0.55, 66); S.drum(T + 0.024, 0.45, 50);
+    S.brass(T, 3.2, 0.26, 3000);
+    S.gong(T + 0.02, 0.3);
     S.stamp(T);
-    // Tiếng nền lặng xuống rồi trở lại, cho khoảnh khắc trang nghiêm.
+    // 3. Vọng: hai tiếng trống nhỏ dần.
+    S.drum(T + 0.62, 0.42, 58); S.drum(T + 1.3, 0.24, 58);
+    // Tiếng nền lặng hẳn rồi trở lại chậm.
     if (ambStarted && ambBus) {
       ambBus.gain.cancelScheduledValues(t);
-      ambBus.gain.setTargetAtTime(0.08, t, 0.15);
-      ambBus.gain.setTargetAtTime(0.32, T + 2.4, 1.6);
+      ambBus.gain.setTargetAtTime(0.03, t, 0.12);
+      ambBus.gain.setTargetAtTime(0.32, T + 3, 1.8);
     }
   },
   // Quạt gõ bàn: tiếng chát gỗ sắc.
