@@ -2,7 +2,7 @@
 // Trình duyệt chỉ cho phát tiếng sau lần chạm hoặc gõ phím đầu tiên, nên mọi thứ khởi động ở unlock().
 // Người dùng tắt/bật bằng nút loa; lựa chọn được nhớ trên máy.
 
-let ctx = null, master = null, mixIn = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
+let ctx = null, master = null, mixIn = null, sfxBus = null, stampBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
 let on = readPref();
 // Mức hiệu ứng và tiếng nền, chỉnh cho độ to tương đương bản cũ nhưng không qua bộ nén.
 const SFX_LEVEL = 0.85, AMB_LEVEL = 0.4;
@@ -34,6 +34,7 @@ function setup() {
   ambBus = ctx.createGain(); ambBus.gain.value = 0; ambBus.connect(mix);
   noiseBuf = makeNoise(1.5, false);
   brownBuf = makeNoise(6, true);
+  stampBus = makeStampBus(ctx, sfxBus);
   return true;
 }
 
@@ -47,6 +48,16 @@ function mixChain(c, out) {
   const trim = c.createGain(); trim.gain.value = 0.8;
   hp.connect(trim).connect(lim).connect(out);
   return hp;
+}
+
+// Con dấu đi qua một gian phòng gỗ nhỏ (vang ngắn 0,6s) để nghe chắc và trang nghiêm, không khô như gõ bàn.
+function makeStampBus(c, out) {
+  const bus = c.createGain(), room = c.createConvolver(), wet = c.createGain();
+  const len = Math.floor(c.sampleRate * 0.6), ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 5); }
+  room.buffer = ir; wet.gain.value = 0.22;
+  bus.connect(out); bus.connect(room).connect(wet).connect(out);
+  return bus;
 }
 
 // ---------- viên gạch dựng tiếng ----------
@@ -76,6 +87,16 @@ function noise({ t = now(), peak = 0.3, attack = 0.005, decay = 0.2, type = "ban
 }
 
 // ---------- các tiếng trong quán ----------
+// Mõ nhỏ cho tiếng gõ chữ: gam ngũ cung Sol (G A B D E), cùng giọng với nhạc nền.
+const KEY_NOTES = [783.99, 880, 987.77, 1174.66, 1318.51, 1567.98];
+let lastKey = -1, lastNote = -1;
+function pickKey() { let i; do { i = Math.floor(Math.random() * KEY_NOTES.length); } while (i === lastNote); lastNote = i; return KEY_NOTES[i]; }
+function moTick(t, f, peak) {
+  tone({ type: "triangle", f, f2: f * 0.93, t, peak, attack: 0.001, decay: 0.07 });
+  tone({ f: f * 2.7, t, peak: peak * 0.18, attack: 0.001, decay: 0.02 });
+  noise({ t, peak: peak * 0.35, attack: 0.001, decay: 0.008, type: "highpass", f: 3000 });
+}
+
 const S = {
   // Mõ gỗ: thầy gõ trong lúc ngẫm.
   mo(t = now(), soft = false) {
@@ -92,18 +113,34 @@ const S = {
   whoosh(t = now(), dur = 0.38, from = 500, to = 2600, peak = 0.22) {
     noise({ t, peak, attack: dur * 0.7, decay: dur * 0.4, f: from, f2: to, q: 1.2 });
   },
-  // Cộp: con dấu đập xuống bàn gỗ.
+  // Đóng mộc: con dấu gỗ cứng ấn xuống án thư. Gọn một tiếng "cộp" chắc, có thớ gỗ, không ầm.
+  // Mặt dấu chạm giấy (tách sắc) → thân gỗ cộng hưởng (G3, khớp giọng Sol của nhạc) → lực ấn trầm, ngắn
+  // → con dấu nhấc lên → bát chuông trầm ngân rất khẽ cho phần "nghiêm".
   stamp(t = now()) {
-    tone({ f: 130, f2: 42, t, peak: 0.95, attack: 0.002, decay: 0.32 });
-    noise({ t, peak: 0.55, decay: 0.09, type: "lowpass", f: 900 });
-    tone({ type: "triangle", f: 240, f2: 200, t, peak: 0.3, decay: 0.12 });
-    noise({ t: t + 0.01, peak: 0.08, decay: 0.25, type: "bandpass", f: 3200, q: 0.8 });
+    const o = stampBus;
+    noise({ t, peak: 0.432, attack: 0.001, decay: 0.012, type: "highpass", f: 3800, out: o });
+    tone({ f: 196, f2: 188, t, peak: 0.675, attack: 0.001, decay: 0.11, out: o });
+    tone({ f: 418, f2: 405, t, peak: 0.324, attack: 0.001, decay: 0.07, out: o });
+    tone({ type: "triangle", f: 905, t, peak: 0.135, attack: 0.001, decay: 0.035, out: o });
+    tone({ f: 96, f2: 56, t, peak: 0.972, attack: 0.002, decay: 0.17, out: o });
+    noise({ t, peak: 0.405, attack: 0.002, decay: 0.05, type: "lowpass", f: 620, out: o });
+    noise({ t: t + 0.006, peak: 0.095, attack: 0.001, decay: 0.008, type: "highpass", f: 5000, out: o });
+    noise({ t: t + 0.32, peak: 0.047, attack: 0.004, decay: 0.03, type: "bandpass", f: 2400, q: 1.5, out: o });
+    [[1, 0.055, 2.6], [2.71, 0.018, 1.6]].forEach(([m, a, d]) => tone({ f: 98 * m, t: t + 0.04, peak: a, attack: 0.03, decay: d }));
   },
   // Quạt gõ bàn: tiếng chát gỗ sắc.
   clack(t = now()) {
     noise({ t, peak: 0.7, decay: 0.05, type: "highpass", f: 1400 });
     tone({ type: "triangle", f: 520, f2: 380, t, peak: 0.5, decay: 0.14 });
     tone({ f: 95, f2: 50, t, peak: 0.5, decay: 0.2 });
+  },
+  // Gõ chữ = gõ mõ nhỏ: mỗi phím một tiếng "cốc", cao độ nhảy lung tung trong gam ngũ cung Sol cho vui tai.
+  key(t = now(), kind = "char") {
+    if (t - lastKey < 0.045 && kind === "char") return; lastKey = t;
+    if (kind === "back") { tone({ type: "triangle", f: 520, f2: 430, t, peak: 0.11, decay: 0.08 }); return; }
+    if (kind === "ask") { [0, 0.09].forEach((d, i) => moTick(t + d, KEY_NOTES[3 + i], 0.15)); return; }
+    if (kind === "paste") { [0, 0.06, 0.12, 0.18].forEach((d) => moTick(t + d, pickKey(), 0.09)); return; }
+    moTick(t, pickKey(), kind === "space" ? 0.08 : 0.13);
   },
   // Thở dài.
   sigh(t = now()) {
@@ -349,6 +386,17 @@ export function renderProbe(c, { legacy = false, seconds = 8 } = {}) {
   for (let i = 0; i < 3; i++) S.mo(r - 2 + i * 0.55, i === 2);
   S.bell(r + 0.22); S.whoosh(r + 0.5); S.stamp(r + 0.92);
   ({ ctx, sfxBus, ambBus, noiseBuf, brownBuf, ambBusInner } = saved);
+}
+
+// Dựng một chuỗi hiệu ứng vào OfflineAudioContext để nghe thử ngoài trang: plan = [[giây, tên, ...tham số], ...].
+export function renderSfx(c, plan) {
+  const saved = { ctx, sfxBus, stampBus, noiseBuf, lastKey };
+  ctx = c; lastKey = -1;
+  const mix = mixChain(c, c.destination), g = c.createGain(); g.gain.value = 0.9; g.connect(mix);
+  sfxBus = c.createGain(); sfxBus.gain.value = SFX_LEVEL; sfxBus.connect(g);
+  stampBus = makeStampBus(c, sfxBus); noiseBuf = makeNoise(1.5, false);
+  plan.forEach(([t, name, ...args]) => S[name]?.(t, ...args));
+  ({ ctx, sfxBus, stampBus, noiseBuf, lastKey } = saved);
 }
 
 // ---------- API cho app.js ----------
