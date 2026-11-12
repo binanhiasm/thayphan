@@ -1,11 +1,13 @@
-// Âm thanh quán trà, tổng hợp bằng Web Audio: không file âm thanh, không bản quyền, gần như không tốn dung lượng.
+// Âm thanh quán trà: hiệu ứng tổng hợp bằng Web Audio (không file, không bản quyền) + nhạc nền public/audio/nhac-nen.mp3.
 // Trình duyệt chỉ cho phát tiếng sau lần chạm hoặc gõ phím đầu tiên, nên mọi thứ khởi động ở unlock().
 // Người dùng tắt/bật bằng nút loa; lựa chọn được nhớ trên máy.
 
-let ctx = null, master = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
+let ctx = null, master = null, mixIn = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
 let on = readPref();
 // Mức hiệu ứng và tiếng nền, chỉnh cho độ to tương đương bản cũ nhưng không qua bộ nén.
 const SFX_LEVEL = 0.85, AMB_LEVEL = 0.4;
+// Nhạc nền (bản 慢品一盏茶 có thêm bộ gõ). Có file thì phát nhạc; không tải được thì quay về tiếng nền tổng hợp.
+const MUSIC_SRC = "/audio/nhac-nen.mp3", MUSIC_LEVEL = 0.42;
 
 function readPref() { try { return localStorage.getItem("tp-sound") !== "off"; } catch { return true; } }
 function savePref() { try { localStorage.setItem("tp-sound", on ? "on" : "off"); } catch {} }
@@ -26,7 +28,7 @@ function setup() {
   if (!AC) return false;
   ctx = new AC();
   master = ctx.createGain(); master.gain.value = on ? 0.9 : 0; master.connect(ctx.destination);
-  const mix = mixChain(ctx, master);
+  const mix = mixChain(ctx, master); mixIn = mix;
   // Hiệu ứng để dư ~6 dB đỉnh: bộ chặn đỉnh gần như không phải làm việc.
   sfxBus = ctx.createGain(); sfxBus.gain.value = SFX_LEVEL; sfxBus.connect(mix);
   ambBus = ctx.createGain(); ambBus.gain.value = 0; ambBus.connect(mix);
@@ -270,8 +272,43 @@ function loop(layer, i, delay) {
     loop(layer, i, layer.min + Math.random() * (layer.max - layer.min));
   }, delay);
 }
+// ---------- nhạc nền ----------
+// Phát qua thẻ <audio> (stream dần, không giải mã cả bài vào RAM) rồi nối vào cùng chuỗi trộn với hiệu ứng.
+let music = null, musicGain = null, musicOk = false, synthStarted = false;
+function startMusic() {
+  if (music) return;
+  music = new Audio(); music.src = MUSIC_SRC; music.loop = true; music.preload = "auto";
+  musicGain = ctx.createGain(); musicGain.gain.value = 0;
+  try { ctx.createMediaElementSource(music).connect(musicGain).connect(mixIn); } catch { return fallbackToSynth(); }
+  music.addEventListener("playing", () => {
+    musicOk = true;
+    musicGain.gain.cancelScheduledValues(now());
+    musicGain.gain.setTargetAtTime(MUSIC_LEVEL, now(), 1.2); // mở dần ~4 giây
+  });
+  music.addEventListener("error", fallbackToSynth);
+  playMusic();
+}
+function playMusic() { if (music && on && !document.hidden) music.play().catch(() => {}); }
+function fallbackToSynth() {
+  musicOk = false;
+  if (musicGain) musicGain.gain.setTargetAtTime(0, now(), 0.2);
+  startSynthAmbience();
+}
+// Công đường lặng: nhạc lắng xuống lúc con dấu đập, rồi dâng lại.
+function duckMusic(t) {
+  if (!musicOk) return;
+  const g = musicGain.gain;
+  g.cancelScheduledValues(t - 0.3); g.setValueAtTime(MUSIC_LEVEL, t - 0.3);
+  g.linearRampToValueAtTime(MUSIC_LEVEL * 0.3, t);
+  g.setTargetAtTime(MUSIC_LEVEL, t + 0.6, 1.1);
+}
+
 function startAmbience() {
   if (ambStarted) return; ambStarted = true;
+  startMusic();
+}
+function startSynthAmbience() {
+  if (synthStarted) return; synthStarted = true;
   ambBusInner = ambienceGraph(ctx, ambBus);
   noise({ t: now(), peak: 0.15, attack: 0.01, decay: 1e5, type: "lowpass", f: 380, q: 0.5, out: ambBus, buf: brownBuf }); // hơi phòng
   drone(ctx, ambBusInner, now());
@@ -325,19 +362,20 @@ export const sound = {
   },
   toggle() {
     on = !on; savePref();
-    if (on) { this.unlock(); master.gain.setTargetAtTime(0.9, now(), 0.05); }
-    else if (ctx) master.gain.setTargetAtTime(0, now(), 0.05);
+    if (on) { this.unlock(); master.gain.setTargetAtTime(0.9, now(), 0.05); playMusic(); }
+    else if (ctx) { master.gain.setTargetAtTime(0, now(), 0.05); music?.pause(); }
     return on;
   },
   // Phát một tiếng sau `delay` giây; im lặng nếu đang tắt hoặc trình duyệt chưa cho phát.
   play(name, delay = 0, ...args) {
     if (!on || !ctx || ctx.state !== "running") return;
     S[name]?.(now() + delay, ...args);
+    if (name === "stamp") duckMusic(now() + delay);
   }
 };
 
 // Tab ẩn thì tạm dừng cho đỡ tốn pin.
 document.addEventListener("visibilitychange", () => {
   if (!ctx) return;
-  if (document.hidden) ctx.suspend(); else if (on) ctx.resume();
+  if (document.hidden) { ctx.suspend(); music?.pause(); } else if (on) { ctx.resume(); playMusic(); }
 });
