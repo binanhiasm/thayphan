@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { makeAsk, MODEL } from "./lib/claude.js";
 import { createPhanHandler, limitsFromEnv, send } from "./lib/phan.js";
 import { storeFromEnv } from "./lib/store.js";
+import { secretFromEnv } from "./lib/token.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(here, "public");
@@ -16,7 +17,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const ask = makeAsk();
 const store = storeFromEnv();
 const limits = limitsFromEnv();
-const handlePhan = createPhanHandler({ store, ask, limits });
+const handlePhan = createPhanHandler({ store, ask, limits, secret: secretFromEnv() });
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".gif": "image/gif" };
 

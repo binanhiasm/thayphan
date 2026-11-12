@@ -38,12 +38,19 @@ Server chỉ gọi Claude khi qua hết các chốt sau. Không qua chốt nào 
 | Chốt | Biến | Mặc định |
 |---|---|---|
 | Lượt hỏi mỗi phút mỗi IP | `RATE_PER_MIN` | 15 |
+| Chỉ nhận request từ chính trang (Origin) và có vé hợp lệ | `TOKEN_TTL`, `TOKEN_USES`, `ALLOWED_ORIGINS` | vé 30 phút, 30 lượt |
 | Câu nhạy cảm trả câu có sẵn | (luôn bật) | |
 | Lượt AI cho mỗi câu hỏi, tính cả hỏi lại | `AI_PER_QUESTION` | 2 |
 | Câu phán nhớ cho mỗi câu hỏi; nhớ đủ thì xoay vòng | `CACHE_SIZE` | 5 (nhớ 7 ngày) |
 | Lượt AI mỗi ngày cho cả trang | `DAILY_AI_LIMIT` | 2000 |
 
 Với mặc định trên, Opus tốn tối đa khoảng $10/ngày, Haiku khoảng $0,25/ngày.
+
+### Vé hỏi thầy
+
+Trang gọi `GET /api/phan` để xin vé, rồi gửi vé trong header `x-thay-token` mỗi lần hỏi. Vé được server ký bằng khoá bí mật, gắn với tên miền của trang, hết hạn sau 30 phút và chỉ dùng được 30 lượt. Request không có header `Origin` của trang (curl, script, trang web khác) bị chặn 403; thiếu vé hoặc vé sai bị chặn 401.
+
+Cách này chặn được việc trang khác dùng ké API và việc copy request đem đi xài lại. Nó không chặn được script giả làm trình duyệt (tải trang, xin vé rồi hỏi): phía trình duyệt không giữ được bí mật nào. Phần đó do các trần chi phí ở trên lo; muốn chặn bot từ gốc thì thêm Vercel BotID hoặc Cloudflare Turnstile.
 
 Chốt cuối cùng nên đặt thêm: giới hạn chi tiêu theo tháng trong Anthropic Console (Settings → Limits).
 

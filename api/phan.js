@@ -3,8 +3,9 @@
 import { makeAsk } from "../lib/claude.js";
 import { createPhanHandler, limitsFromEnv } from "../lib/phan.js";
 import { storeFromEnv } from "../lib/store.js";
+import { secretFromEnv } from "../lib/token.js";
 
 const store = storeFromEnv();
 if (store.kind === "memory") console.warn("[thayphan] Chưa gắn Redis: giới hạn lượt gọi chỉ tính riêng từng máy chạy hàm, không chính xác.");
 
-export default createPhanHandler({ store, ask: makeAsk(), limits: limitsFromEnv() });
+export default createPhanHandler({ store, ask: makeAsk(), limits: limitsFromEnv(), secret: secretFromEnv() });

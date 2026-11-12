@@ -127,15 +127,34 @@ function idle() {
   panel.querySelectorAll(".chip").forEach((c) => (c.onclick = () => ask(c.textContent)));
 }
 
+// Vé hỏi thầy do server cấp. Hết hạn hoặc hết lượt thì xin vé mới một lần rồi hỏi lại.
+let ticket = null;
+async function getTicket(fresh, signal) {
+  if (!fresh && ticket && ticket.until > Date.now()) return ticket.token;
+  ticket = null;
+  const r = await fetch("/api/phan", { signal });
+  if (!r.ok) return null;
+  const j = await r.json();
+  if (!j.token) return null;
+  ticket = { token: j.token, until: Date.now() + (j.expiresIn - 60) * 1000 };
+  return ticket.token;
+}
+
 async function getVerdict(q) {
   const key = normKey(q), prev = said[key] || (said[key] = []);
   if (prev.length >= 5) { said[key] = []; return CLOSERS[Math.floor(Math.random() * CLOSERS.length)]; }
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 14000);
   try {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 14000);
-    const r = await fetch("/api/phan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q, prev }), signal: ctl.signal });
-    clearTimeout(t);
-    if (r.ok) { const j = await r.json(); if (j.verdict) { if (j.source === "ai" || j.source === "cache") prev.push(j.verdict); return j.verdict; } }
+    for (const fresh of [false, true]) {
+      const token = await getTicket(fresh, ctl.signal);
+      if (!token) break;
+      const r = await fetch("/api/phan", { method: "POST", headers: { "content-type": "application/json", "x-thay-token": token }, body: JSON.stringify({ q, prev }), signal: ctl.signal });
+      if (r.status === 401) continue;
+      if (r.ok) { const j = await r.json(); if (j.verdict) { if (j.source === "ai" || j.source === "cache") prev.push(j.verdict); return j.verdict; } }
+      break;
+    }
   } catch { /* mất mạng hoặc AI lỗi: thầy rút quẻ trong ống */ }
+  finally { clearTimeout(t); }
   return pick(q, verdict);
 }
 
