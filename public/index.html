@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Thầy Phán</title>
+<meta name="description" content="Ngại quyết định? Hỏi Thầy Phán. Thầy phán một câu, không giải thích, sai thầy chịu.">
+<meta name="theme-color" content="#140a07">
+<meta property="og:title" content="Thầy Phán">
+<meta property="og:description" content="Thầy phán một câu. Không giải thích. Sai thầy chịu.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Display:wght@500;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&text=%E5%88%A4%E7%A6%8F%E5%AE%89%E4%B8%80%E8%A8%80%E5%AE%9A%E5%A5%AA&display=swap">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app" id="app">
+  <div class="glow"></div>
+  <div class="flash" id="flash"></div>
+  <div class="lantern l"><div class="cord"></div><div class="body">福</div><div class="tassel"></div></div>
+  <div class="lantern r"><div class="cord"></div><div class="body">安</div><div class="tassel"></div></div>
+  <header><div class="han">一言定奪</div><h1>THẦY PHÁN</h1></header>
+  <div class="tally" id="tally"></div>
+  <div class="scroll">TĨNH · ĐỊNH · TUỆ</div>
+
+  <div class="stage" id="stage">
+    <svg viewBox="0 0 200 270" role="img" aria-label="Ông thầy ngồi bên bàn trà" id="master">
+      <defs>
+        <radialGradient id="au" cx="50%" cy="40%" r="50%"><stop offset="0" stop-color="#e3bb63" stop-opacity=".6"/><stop offset="1" stop-color="#e3bb63" stop-opacity="0"/></radialGradient>
+        <linearGradient id="rb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9b2f24"/><stop offset="1" stop-color="#561811"/></linearGradient>
+      </defs>
+      <circle class="aura" id="aura" cx="100" cy="92" r="84" fill="url(#au)"/>
+      <ellipse cx="100" cy="258" rx="90" ry="9" fill="#2a160e"/>
+      <path d="M35 258Q38 214 56 209L144 209Q162 214 165 258Z" fill="#561811"/>
+      <path d="M46 258Q50 220 66 216L134 216Q150 220 154 258Z" fill="url(#rb)"/>
+      <path d="M55 214Q48 155 68 115L132 115Q152 155 145 214Z" fill="url(#rb)"/>
+      <path d="M72 120Q100 128 128 120" stroke="#e3bb63" stroke-width="2.5" fill="none"/>
+      <path d="M128 118L84 214" stroke="#c9a147" stroke-width="5" opacity=".55"/>
+      <ellipse cx="100" cy="172" rx="22" ry="15" fill="#d9ad84"/>
+      <path d="M82 172Q100 166 118 172" stroke="#8b5e3a" stroke-width="1" fill="none"/>
+      <rect x="92" y="108" width="16" height="12" fill="#c9a07a"/>
+      <ellipse cx="100" cy="85" rx="30" ry="34" fill="#d9ad84"/>
+      <path d="M100 55Q125 60 128 90Q125 115 100 118Z" fill="#000" opacity=".08"/>
+      <ellipse cx="70" cy="90" rx="4" ry="9" fill="#c9a07a"/><ellipse cx="130" cy="90" rx="4" ry="9" fill="#c9a07a"/>
+      <path d="M70 68Q100 32 130 68L130 84Q100 74 70 84Z" fill="#561811"/>
+      <path d="M72 71Q100 41 128 71M71 78Q100 52 129 78" stroke="#3a0d08" stroke-width="2" fill="none"/>
+      <path d="M70 84Q100 74 130 84" stroke="#c9a147" stroke-width="1.5" fill="none"/>
+      <circle cx="100" cy="37" r="6" fill="#e3bb63"/>
+      <path id="browL" class="fb" style="transform-origin:left center" d="M76 95Q82 90 92 93Q88 96 80 97Z" fill="#ece2d4"/>
+      <path id="browR" class="fb" style="transform-origin:right center" d="M124 95Q118 90 108 93Q112 96 120 97Z" fill="#ece2d4"/>
+      <g id="eyesClosed" stroke="#1a0a05" stroke-width="1.8" fill="none" stroke-linecap="round"><path id="clL" d="M82 102Q87 105 92 102"/><path id="clR" d="M108 102Q113 105 118 102"/></g>
+      <g id="eyesOpen" class="fb" style="transform-origin:center" opacity="0">
+        <ellipse cx="87" cy="102" rx="5" ry="3.4" fill="#f6ead6"/><ellipse cx="113" cy="102" rx="5" ry="3.4" fill="#f6ead6"/>
+        <circle cx="87" cy="102.4" r="2.3" fill="#1a0a05"/><circle cx="113" cy="102.4" r="2.3" fill="#1a0a05"/>
+        <circle cx="87.9" cy="101.4" r=".8" fill="#fff"/><circle cx="113.9" cy="101.4" r=".8" fill="#fff"/>
+      </g>
+      <g id="peek" class="fb" style="transform-origin:center" opacity="0">
+        <ellipse cx="113" cy="102.6" rx="5" ry="2.6" fill="#f6ead6"/><circle id="peekP" cx="112" cy="103.2" r="2" fill="#1a0a05"/><circle cx="112.6" cy="102.5" r=".6" fill="#fff"/>
+        <path d="M107.6 101.2Q113 99.3 118.4 101.2" stroke="#1a0a05" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      </g>
+      <path d="M100 107Q97 115 100 120Q103 115 100 107Z" fill="#b8865d" opacity=".6"/>
+      <path d="M88 124Q95 122 100 125Q105 122 112 124" stroke="#ece2d4" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <path d="M90 130Q86 150 85 175Q86 190 92 200M110 130Q114 150 115 175Q114 190 108 200" stroke="#ece2d4" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M100 132Q99 160 100 196" stroke="#ece2d4" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <g id="anger" class="fb" style="transform-origin:center" opacity="0"><path d="M131 62q3 3 0 6M137 62q-3 3 0 6M131 62q3 3 6 0M131 68q3-3 6 0" stroke="#e2574a" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+      <circle id="puff" class="fb" style="transform-origin:center" cx="102" cy="127" r="5" fill="#fff6e6" opacity="0"/>
+      <g id="sip" opacity="0" style="transform:translate(100px,170px)"><ellipse cx="0" cy="7" rx="12" ry="6.5" fill="#d9ad84"/><path d="M-8 -6L8 -6L6 6Q0 9 -6 6Z" fill="#6a3a26"/><ellipse cx="0" cy="-6" rx="8" ry="2" fill="#2a120a"/><path d="M-6 -2H6" stroke="#c9a147" stroke-width="1.2"/></g>
+      <text id="kha" class="fb" style="transform-origin:center" x="128" y="122" opacity="0" font-family="Noto Serif Display,Georgia,serif" font-style="italic" font-size="11" fill="#f3d48a">khà~</text>
+      <g id="fan" opacity="0" style="transform-box:view-box;transform-origin:140px 150px;transform:rotate(-150deg)">
+        <path d="M128 136Q134 146 140 150" stroke="#8e2419" stroke-width="10" stroke-linecap="round" fill="none"/>
+        <rect x="136" y="150" width="8" height="96" rx="3" fill="#7a4a22"/><rect x="136" y="232" width="8" height="14" rx="3" fill="#c9a147"/>
+        <path d="M138 160V236M142 160V236" stroke="#5a3418" stroke-width=".8"/><circle cx="140" cy="152" r="7" fill="#d9ad84"/>
+      </g>
+    </svg>
+  </div>
+  <div class="table" id="table">
+    <div class="steam"></div><div class="steam" style="animation-delay:.7s;margin-left:-10px"></div><div class="steam" style="animation-delay:1.4s;margin-left:9px"></div>
+    <div class="potpuff" id="potpuff"></div>
+    <div class="cup a"></div><div class="pot"></div><div class="cup b"></div>
+    <div class="top"></div><div class="leg"></div>
+  </div>
+
+  <section class="panel" id="panel" aria-live="polite"></section>
+  <div class="modal" id="modal" hidden></div>
+</div>
+<noscript><p style="color:#f1e2bd;text-align:center;padding:24px">Thầy cần JavaScript để phán. Con bật lên giúp thầy nhé.</p></noscript>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
