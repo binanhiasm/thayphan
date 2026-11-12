@@ -97,12 +97,15 @@ const S = {
   whoosh(t = now(), dur = 0.38, from = 500, to = 2600, peak = 0.22) {
     noise({ t, peak, attack: dur * 0.7, decay: dur * 0.4, f: from, f2: to, q: 1.2 });
   },
-  // Cộp: con dấu đập xuống bàn gỗ.
-  stamp(t = now()) {
-    tone({ f: 150, f2: 75, t, peak: 0.5, attack: 0.002, decay: 0.26 });
-    noise({ t, peak: 0.55, decay: 0.09, type: "lowpass", f: 900 });
-    tone({ type: "triangle", f: 240, f2: 200, t, peak: 0.3, decay: 0.12 });
-    noise({ t: t + 0.01, peak: 0.08, decay: 0.25, type: "bandpass", f: 3200, q: 0.8 });
+  // CỘP: con dấu gỗ nện lên giấy trên mặt bàn gỗ dày.
+  // Tiếng gỗ = vài dải cộng hưởng hẹp tắt nhanh; không có gì ngân dài như kim loại.
+  stamp(t = now(), peak = 1) {
+    tone({ f: 120, f2: 72, t, peak: peak * 0.55, attack: 0.002, decay: 0.22 });                 // thân bàn nặng
+    [[190, 9, 0.5, 0.2], [330, 10, 0.42, 0.14], [560, 12, 0.3, 0.09], [930, 12, 0.18, 0.05]].forEach(([f, q, a, dec]) =>
+      noise({ t, peak: peak * a, attack: 0.001, decay: dec, f, q }));                          // vân gỗ cộng hưởng
+    noise({ t, peak: peak * 0.35, attack: 0.001, decay: 0.035, f: 1900, q: 0.7 });              // giấy bị nện
+    noise({ t, peak: peak * 0.12, attack: 0.001, decay: 0.012, type: "highpass", f: 4000 });     // mép dấu chạm
+    noise({ t, peak: peak * 0.2, attack: 0.001, decay: 0.3, f: 260, q: 3, out: sfxVerb });       // vang gian phòng, ngắn
   },
   // Trống lớn (kiểu taiko): thân trầm + mặt da + vang.
   drum(t = now(), peak = 1, f = 80) {
@@ -133,38 +136,19 @@ const S = {
     const send = ctx.createGain(); send.gain.value = 0.7; g.connect(send).connect(sfxVerb);
     return g;
   },
-  // Cồng đồng lớn: tổng hợp FM cho chất kim loại, cao độ trùng xuống, xèo chát, ngân dài.
-  gong(t = now(), peak = 0.3, f = 110) {
-    [[1, 1.41, 4.5, 7], [1.5, 2.37, 3.2, 5], [2.13, 3.17, 2.2, 3.5]].forEach(([cm, mm, index, dec], i) => {
-      const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
-      const fc = f * cm;
-      car.frequency.setValueAtTime(fc * 1.06, t); car.frequency.exponentialRampToValueAtTime(fc, t + 0.6);
-      mod.frequency.setValueAtTime(fc * mm * 1.06, t); mod.frequency.exponentialRampToValueAtTime(fc * mm, t + 0.6);
-      mg.gain.setValueAtTime(fc * index, t); mg.gain.exponentialRampToValueAtTime(fc * 0.4, t + dec * 0.6);
-      mod.connect(mg).connect(car.frequency);
-      const p = peak * [1, 0.6, 0.35][i];
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
-      car.connect(g); g.connect(sfxBus);
-      const send = ctx.createGain(); send.gain.value = 0.8; g.connect(send).connect(sfxVerb);
-      car.start(t); mod.start(t); car.stop(t + dec + 0.1); mod.stop(t + dec + 0.1);
-    });
-    noise({ t, peak: peak * 0.3, decay: 0.3, f: 4500, q: 0.6 });               // xèo chát lúc đánh
-    noise({ t, peak: peak * 0.2, attack: 0.05, decay: 3.5, f: 3600, q: 0.7, out: sfxVerb }); // xèo ngân
-  },
   // Khoảnh khắc phán. Mốc 0,92s là lúc con dấu đập xuống trong animation.
   verdict(t = now()) {
     const hit = 0.92, T = t + hit;
     // 1. Dồn: hợp âm đồng dâng lên + trống dồn nhanh dần + xèo dâng, cắt lặng 60ms trước khi đập.
-    const swell = S.brass(t, 0, 0.12, 2000, hit - 0.06);
-    swell.gain.setValueAtTime(0.14, T - 0.06); swell.gain.exponentialRampToValueAtTime(0.0001, T - 0.03);
+    const SW = 0.08, swell = S.brass(t, 0, SW, 2000, hit - 0.06);
+    swell.gain.setValueAtTime(SW, T - 0.06); swell.gain.exponentialRampToValueAtTime(0.0001, T - 0.03);
     let tt = t + 0.05, gap = 0.16;
-    for (let k = 0; tt < T - 0.1; k++) { S.drum(tt, 0.14 + k * 0.04, 104 - k * 2); tt += gap; gap *= 0.82; }
-    noise({ t, peak: 0.13, attack: hit - 0.08, decay: 0.02, type: "highpass", f: 3000, f2: 7000, q: 0.5 });
-    // 2. Đập: ba trống cái cùng lúc (lệch vài ms cho dày), hợp âm đồng, cồng, cộp con dấu.
-    S.drum(T, 0.62, 72); S.drum(T + 0.014, 0.32, 86); S.drum(T + 0.028, 0.26, 64);
-    S.brass(T, 3.2, 0.2, 2600);
-    S.gong(T + 0.02, 0.24);
-    S.stamp(T);
+    for (let k = 0; tt < T - 0.1; k++) { S.drum(tt, 0.08 + k * 0.025, 104 - k * 2); tt += gap; gap *= 0.82; }
+    noise({ t, peak: 0.09, attack: hit - 0.08, decay: 0.02, type: "highpass", f: 3000, f2: 7000, q: 0.5 });
+    // 2. Đập: CỘP con dấu là chính, trống cái đỡ phía dưới, hợp âm đồng ngắn và tắt gọn.
+    S.stamp(T, 1.6);
+    S.drum(T, 0.5, 72); S.drum(T + 0.016, 0.26, 64);
+    S.brass(T, 1.4, 0.15, 2200);
     // 3. Vọng: hai tiếng trống nhỏ dần.
     S.drum(T + 0.62, 0.34, 72); S.drum(T + 1.3, 0.2, 72);
     // Tiếng nền lặng hẳn rồi trở lại chậm.
