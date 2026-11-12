@@ -204,11 +204,11 @@ function reveal() {
   $("again").onclick = () => ask(lastQ, true);
   $("share").onclick = card;
   $("new").onclick = idle;
-  if (reduce.matches) { seal.hidden = false; acts.classList.remove("wait"); sound.play("verdict"); return; }
+  if (reduce.matches) { seal.hidden = false; acts.classList.remove("wait"); sound.play("stamp"); return; }
 
   // A+B: chữ hiện mờ → thầy mở mắt → con dấu rơi → cộp
   vt.animate([{ opacity: 0, filter: "blur(6px)" }, { opacity: .35, filter: "blur(4px)" }], { duration: 260, ...F });
-  sound.play("verdict"); // trống dồn → đập dấu đúng mốc 0,92s cùng animation
+  sound.play("bell", 0.22); sound.play("whoosh", 0.5); sound.play("stamp", 0.92);
   setTimeout(() => {
     eyes.open();
     $("aura").animate([{ opacity: 0 }, { opacity: 1, offset: .25 }, { opacity: .35 }, { opacity: 0 }], { duration: 1600, easing: "ease-out" });
