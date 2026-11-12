@@ -122,7 +122,11 @@ function idle() {
     <div class="chips">${samples().map((s) => `<button class="chip">${esc(s)}</button>`).join("")}</div>
     <p class="vow">Thầy phán một câu. Không giải thích. Sai thầy chịu.</p></div>`;
   const ta = $("q"), send = $("send");
-  ta.oninput = () => {
+  let prevLen = ta.value.length;
+  ta.oninput = (e) => {
+    const d = ta.value.length - prevLen; prevLen = ta.value.length;
+    const last = ta.value.slice(-1);
+    sound.play("key", 0, d < 0 ? "back" : d > 3 ? "paste" : last === "?" ? "ask" : last === " " ? "space" : "char");
     draft = ta.value; send.disabled = !ta.value.trim(); lastActivity = Date.now();
     if (ta.value.trim().length >= 3) { peekOn(); clearTimeout(peekTimer); peekTimer = setTimeout(peekOff, 3500); } else peekOff();
   };
@@ -208,7 +212,7 @@ function reveal() {
 
   // A+B: chữ hiện mờ → thầy mở mắt → con dấu rơi → cộp
   vt.animate([{ opacity: 0, filter: "blur(6px)" }, { opacity: .35, filter: "blur(4px)" }], { duration: 260, ...F });
-  sound.play("bell", 0.22); sound.play("whoosh", 0.5); sound.play("stamp", 0.92);
+  sound.play("bell", 0.22); sound.play("whoosh", 0.56, 0.3, 700, 1800, 0.09); sound.play("stamp", 0.92);
   setTimeout(() => {
     eyes.open();
     $("aura").animate([{ opacity: 0 }, { opacity: 1, offset: .25 }, { opacity: .35 }, { opacity: 0 }], { duration: 1600, easing: "ease-out" });
