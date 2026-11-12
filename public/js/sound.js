@@ -110,24 +110,130 @@ const S = {
   }
 };
 
-// ---------- tiếng nền: quán trà đêm ----------
-let ambStarted = false;
+// ---------- tiếng nền: gian điện trà, hơi hướng thiền Trung Hoa ----------
+// Ngân trầm (D và A) làm nền, chuông xoay thỉnh thoảng ngân dài, đàn tranh rải vài nốt ngũ cung (D E F# A B).
+// Mọi thứ đi qua một lớp vang dài cho cảm giác gian phòng rộng.
+// Các hàm nhận ctx riêng để có thể dựng bản nghe thử bằng OfflineAudioContext.
+
+const PENTA = [293.66, 329.63, 369.99, 440, 493.88, 587.33, 659.25, 739.99, 880]; // D4 → A5, gam ngũ cung D cung
+const pluckCache = new Map();
+
+function reverb(c, seconds = 4.5) {
+  const len = Math.floor(c.sampleRate * seconds), ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+  }
+  const cv = c.createConvolver(); cv.buffer = ir; return cv;
+}
+
+// Dây đàn gảy (Karplus-Strong): tiếng đàn tranh mộc hơn hẳn sóng sin.
+function pluckBuffer(c, f) {
+  const key = `${c.sampleRate}:${f}`;
+  if (pluckCache.has(key)) return pluckCache.get(key);
+  const sr = c.sampleRate, len = Math.floor(sr * 3.2), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
+  const N = Math.max(2, Math.round(sr / f)), damp = 0.4985 + 0.0012 * (f / 900);
+  for (let i = 0; i < N; i++) d[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin((Math.PI * i) / N));
+  for (let i = N; i < len; i++) d[i] = damp * (d[i - N] + d[i - N + 1]);
+  let peak = 0; for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
+  for (let i = 0; i < len; i++) d[i] /= peak || 1;
+  pluckCache.set(key, buf); return buf;
+}
+
+function zheng(c, out, t, f, peak = 0.22) {
+  const s = c.createBufferSource(), g = c.createGain(), lp = c.createBiquadFilter();
+  s.buffer = pluckBuffer(c, f);
+  // Ấn dây: nốt hơi non rồi trượt lên đúng cao độ, đặc trưng đàn tranh.
+  s.playbackRate.setValueAtTime(0.985, t); s.playbackRate.linearRampToValueAtTime(1, t + 0.12);
+  if (Math.random() < 0.3) { s.playbackRate.setValueAtTime(1, t + 0.5); s.playbackRate.linearRampToValueAtTime(1.012, t + 0.8); s.playbackRate.linearRampToValueAtTime(1, t + 1.2); }
+  lp.type = "lowpass"; lp.frequency.value = 3200;
+  g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.1);
+  s.connect(lp).connect(g).connect(out); s.start(t); s.stop(t + 3.2);
+}
+
+// Một câu đàn ngắn: 2–5 nốt đi lần, thỉnh thoảng có nốt luyến hai lần.
+function zhengPhrase(c, out, t) {
+  let i = Math.floor(Math.random() * 5) + 2, tt = t;
+  const n = 2 + Math.floor(Math.random() * 4), dir = Math.random() < 0.6 ? -1 : 1;
+  for (let k = 0; k < n; k++) {
+    zheng(c, out, tt, PENTA[i], 0.2 - k * 0.02);
+    if (Math.random() < 0.2) zheng(c, out, tt + 0.11, PENTA[i], 0.1);
+    i = Math.min(PENTA.length - 1, Math.max(0, i + dir * (1 + (Math.random() < 0.25 ? 1 : 0))));
+    tt += 0.38 + Math.random() * 0.5;
+  }
+  return tt - t;
+}
+
+// Chuông xoay: các bồi âm lệch nhau một chút nên ngân "ong ong".
+function bowl(c, out, t, f = 196, peak = 0.12) {
+  [[1, 1, 7], [2.71, 0.5, 5], [5.15, 0.22, 3.2], [8.2, 0.08, 1.8]].forEach(([m, a, dec]) => {
+    [-0.6, 0.6].forEach((det) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = f * m + det * m;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * a * 0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+      o.connect(g).connect(out); o.start(t); o.stop(t + dec + 0.05);
+    });
+  });
+}
+
+// Nền ngân trầm, thở chậm. Trả về hàm dừng.
+function drone(c, out, t) {
+  const g = c.createGain(), lp = c.createBiquadFilter(), lfo = c.createOscillator(), lfoG = c.createGain();
+  lp.type = "lowpass"; lp.frequency.value = 700; g.gain.value = 0.05;
+  lfo.frequency.value = 0.07; lfoG.gain.value = 0.02; lfo.connect(lfoG).connect(g.gain);
+  const oscs = [[73.42, "sine", 1], [73.62, "sine", 0.8], [110, "triangle", 0.35], [146.83, "sine", 0.25]].map(([f, type, a]) => {
+    const o = c.createOscillator(), og = c.createGain();
+    o.type = type; o.frequency.value = f; og.gain.value = a;
+    o.connect(og).connect(lp); o.start(t); return o;
+  });
+  lp.connect(g).connect(out); lfo.start(t);
+  return () => { oscs.forEach((o) => o.stop()); lfo.stop(); };
+}
+
+// Dựng toàn bộ tiếng nền lên `out`. Trả về { dry, wet } để nối bộ âm lượng.
+function ambienceGraph(c, out) {
+  const wet = reverb(c), wetG = c.createGain(), dry = c.createGain();
+  wetG.gain.value = 0.55; dry.gain.value = 0.6;
+  wet.connect(wetG).connect(out); dry.connect(out);
+  const bus = c.createGain(); bus.connect(dry); bus.connect(wet);
+  return bus;
+}
+
+let ambStarted = false, ambBusInner = null;
 function startAmbience() {
   if (ambStarted) return; ambStarted = true;
-  noise({ t: now(), peak: 1, attack: 0.01, decay: 1e5, type: "lowpass", f: 420, q: 0.5, out: ambBus, buf: brownBuf }); // tiếng phòng, mưa xa
-  ambBus.gain.setTargetAtTime(0.05, now(), 1.5);
-  scheduleChime();
+  ambBusInner = ambienceGraph(ctx, ambBus);
+  noise({ t: now(), peak: 0.15, attack: 0.01, decay: 1e5, type: "lowpass", f: 380, q: 0.5, out: ambBus, buf: brownBuf }); // hơi phòng
+  drone(ctx, ambBusInner, now());
+  ambBus.gain.setTargetAtTime(0.32, now(), 2.5);
+  bowl(ctx, ambBusInner, now() + 1.5);
+  scheduleChime(4000);
 }
-function scheduleChime() {
+function scheduleChime(first) {
   clearTimeout(chimeTimer);
   chimeTimer = setTimeout(() => {
     if (ctx && on && ctx.state === "running") {
-      const notes = [880, 988, 1175, 1319, 1568];
-      const t = now();
-      for (let i = 0, n = 1 + Math.floor(Math.random() * 3); i < n; i++) S.bell(t + i * (0.18 + Math.random() * 0.3), notes[Math.floor(Math.random() * notes.length)], 0.035, ambBus);
+      const t = now() + 0.05;
+      if (Math.random() < 0.35) bowl(ctx, ambBusInner, t, Math.random() < 0.5 ? 196 : 146.83, 0.1);
+      else zhengPhrase(ctx, ambBusInner, t);
     }
     scheduleChime();
-  }, 14000 + Math.random() * 18000);
+  }, first ?? 7000 + Math.random() * 9000);
+}
+
+// Bản nghe thử: dựng `seconds` giây tiếng nền vào OfflineAudioContext.
+export function renderAmbiencePreview(c, seconds) {
+  const out = c.createGain(); out.gain.value = 0.32 * 0.9 * 2; out.connect(c.destination);
+  const bus = ambienceGraph(c, out);
+  drone(c, bus, 0);
+  bowl(c, bus, 0.8);
+  let t = 3;
+  while (t < seconds - 4) {
+    if (Math.random() < 0.35) bowl(c, bus, t, Math.random() < 0.5 ? 196 : 146.83, 0.1);
+    else zhengPhrase(c, bus, t);
+    t += 7 + Math.random() * 9;
+  }
 }
 
 // ---------- API cho app.js ----------
