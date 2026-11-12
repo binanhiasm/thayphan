@@ -97,65 +97,56 @@ const S = {
   whoosh(t = now(), dur = 0.38, from = 500, to = 2600, peak = 0.22) {
     noise({ t, peak, attack: dur * 0.7, decay: dur * 0.4, f: from, f2: to, q: 1.2 });
   },
-  // CỘP: con dấu gỗ nện lên giấy trên mặt bàn gỗ dày.
-  // Tiếng gỗ = vài dải cộng hưởng hẹp tắt nhanh; không có gì ngân dài như kim loại.
-  stamp(t = now(), peak = 1) {
-    tone({ f: 120, f2: 72, t, peak: peak * 0.55, attack: 0.002, decay: 0.22 });                 // thân bàn nặng
-    [[190, 9, 0.5, 0.2], [330, 10, 0.42, 0.14], [560, 12, 0.3, 0.09], [930, 12, 0.18, 0.05]].forEach(([f, q, a, dec]) =>
-      noise({ t, peak: peak * a, attack: 0.001, decay: dec, f, q }));                          // vân gỗ cộng hưởng
-    noise({ t, peak: peak * 0.35, attack: 0.001, decay: 0.035, f: 1900, q: 0.7 });              // giấy bị nện
-    noise({ t, peak: peak * 0.12, attack: 0.001, decay: 0.012, type: "highpass", f: 4000 });     // mép dấu chạm
-    noise({ t, peak: peak * 0.2, attack: 0.001, decay: 0.3, f: 260, q: 3, out: sfxVerb });       // vang gian phòng, ngắn
+  // Lính hầu gõ gậy xuống nền đá (đường uy): gỗ chạm đá, ngắn, mỗi người một chỗ trong công đường.
+  staffTap(t = now(), peak = 0.2, pan = 0) {
+    const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(sfxBus);
+    const f = 250 + Math.random() * 170;
+    tone({ type: "triangle", f, f2: f * 0.85, t, peak, attack: 0.001, decay: 0.05, out: p });
+    tone({ f: 120, f2: 90, t, peak: peak * 0.6, attack: 0.002, decay: 0.07, out: p });
+    noise({ t, peak: peak * 0.7, attack: 0.001, decay: 0.02, f: 900 + Math.random() * 500, q: 1.5, out: p });
   },
-  // Trống lớn (kiểu taiko): thân trầm + mặt da + vang.
-  drum(t = now(), peak = 1, f = 80) {
-    tone({ f: f * 2, f2: f * 1.1, t, peak: peak * 0.6, attack: 0.002, decay: 0.07 });   // cú nện đầu
-    tone({ f, f2: f * 0.8, t: t + 0.003, peak: peak * 0.55, attack: 0.005, decay: 0.55 }); // thân trống
-    tone({ type: "triangle", f: f * 2.4, f2: f * 1.5, t, peak: peak * 0.35, decay: 0.16 }); // dải 150–250Hz: loa nhỏ vẫn nghe được sức nặng
-    noise({ t, peak: peak * 0.4, decay: 0.06, type: "bandpass", f: 260, q: 0.8 });       // mặt da
-    noise({ t, peak: peak * 0.1, decay: 0.025, type: "highpass", f: 2500 });               // dùi chạm
-    tone({ f, f2: f * 0.8, t, peak: peak * 0.3, attack: 0.005, decay: 1, out: sfxVerb });
+  // Cả hàng gậy dồn dập, dày và to dần về cuối.
+  staffRoll(t = now(), dur = 0.84, n = 30) {
+    for (let i = 0; i < n; i++) {
+      const u = i / (n - 1), at = t + dur * (1 - Math.pow(1 - u, 1.7)) + (Math.random() - 0.5) * 0.03;
+      if (at > t + dur) continue;
+      S.staffTap(Math.max(t, at), 0.08 + 0.34 * u * u, (Math.random() * 2 - 1) * 0.75);
+    }
   },
-  // Hợp âm đồng trầm (kiểu nhạc phim): chồng sóng răng cưa lệch nhẹ, bộ lọc mở rồi khép.
-  brass(t = now(), dur = 2.8, peak = 0.22, open = 2600, rise = 0) {
-    const lp = ctx.createBiquadFilter(), g = ctx.createGain();
-    lp.type = "lowpass"; lp.Q.value = 1.2;
-    if (rise) { lp.frequency.setValueAtTime(180, t); lp.frequency.exponentialRampToValueAtTime(open, t + rise); }
-    else { lp.frequency.setValueAtTime(open, t); lp.frequency.exponentialRampToValueAtTime(320, t + dur * 0.8); }
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(peak, t + (rise || 0.03));
-    if (!rise) g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    // D2, A2, D3, A3, D4: quãng năm rỗng, nghe cổ và trang nghiêm.
-    [73.42, 110, 146.83, 220, 293.66].forEach((f, i) => [-6, 6].forEach((cents) => {
-      const o = ctx.createOscillator(); o.type = "sawtooth";
-      o.frequency.value = f; o.detune.value = cents;
-      const og = ctx.createGain(); og.gain.value = [0.32, 0.3, 0.26, 0.18, 0.1][i];
-      o.connect(og).connect(lp); o.start(t); o.stop(t + (rise ? rise + 0.05 : dur + 0.1));
-    }));
-    lp.connect(g); g.connect(sfxBus);
-    const send = ctx.createGain(); send.gain.value = 0.7; g.connect(send).connect(sfxVerb);
-    return g;
+  // CHÁT của kinh đường mộc: khối gỗ cứng đập phẳng lên án thư.
+  // Cú chát gồm: xung rất ngắn và sáng, vài mode cộng hưởng của khối gỗ nhỏ đặc (tắt trong vài chục ms),
+  // tiếng thân án thư phía dưới, rồi tiếng dội lại của gian công đường.
+  crack(t = now(), peak = 1) {
+    const hall = ctx.createGain(); hall.gain.value = 1;
+    hall.connect(sfxBus);
+    // Dội lại: hai lần phản xạ từ tường và xà, mỗi lần tối và nhỏ hơn.
+    [[0.068, 0.32, 2600], [0.141, 0.16, 1800], [0.23, 0.07, 1200]].forEach(([d, g, lpf]) => {
+      const dl = ctx.createDelay(1), gg = ctx.createGain(), lp = ctx.createBiquadFilter();
+      dl.delayTime.value = d; gg.gain.value = g; lp.type = "lowpass"; lp.frequency.value = lpf;
+      hall.connect(dl).connect(lp).connect(gg).connect(sfxBus);
+    });
+    const out = ctx.createGain(); out.gain.value = peak; out.connect(hall);
+    noise({ t, peak: 0.9, attack: 0.0005, decay: 0.007, type: "highpass", f: 1800, out });          // xung chát
+    [[690, 0.34, 0.07], [1230, 0.3, 0.05], [1980, 0.24, 0.035], [3050, 0.16, 0.025], [4600, 0.09, 0.015]].forEach(([f, a, dec]) =>
+      tone({ f, t, peak: a, attack: 0.0005, decay: dec, out }));                                    // gỗ đặc kêu
+    noise({ t, peak: 0.35, attack: 0.0005, decay: 0.04, f: 1500, q: 2, out });                       // thớ gỗ
+    tone({ f: 175, f2: 125, t, peak: 0.42, attack: 0.001, decay: 0.12, out });                       // thân án thư
+    tone({ f: 98, f2: 80, t, peak: 0.25, attack: 0.002, decay: 0.18, out });
+    noise({ t, peak: 0.22 * peak, attack: 0.001, decay: 0.25, f: 1400, q: 0.7, out: sfxVerb });        // gian phòng ngân nhẹ
   },
   // Khoảnh khắc phán. Mốc 0,92s là lúc con dấu đập xuống trong animation.
   verdict(t = now()) {
     const hit = 0.92, T = t + hit;
-    // 1. Dồn: hợp âm đồng dâng lên + trống dồn nhanh dần + xèo dâng, cắt lặng 60ms trước khi đập.
-    const SW = 0.08, swell = S.brass(t, 0, SW, 2000, hit - 0.06);
-    swell.gain.setValueAtTime(SW, T - 0.06); swell.gain.exponentialRampToValueAtTime(0.0001, T - 0.03);
-    let tt = t + 0.05, gap = 0.16;
-    for (let k = 0; tt < T - 0.1; k++) { S.drum(tt, 0.08 + k * 0.025, 104 - k * 2); tt += gap; gap *= 0.82; }
-    noise({ t, peak: 0.09, attack: hit - 0.08, decay: 0.02, type: "highpass", f: 3000, f2: 7000, q: 0.5 });
-    // 2. Đập: CỘP con dấu là chính, trống cái đỡ phía dưới, hợp âm đồng ngắn và tắt gọn.
-    S.stamp(T, 1.6);
-    S.drum(T, 0.5, 72); S.drum(T + 0.016, 0.26, 64);
-    S.brass(T, 1.4, 0.15, 2200);
-    // 3. Vọng: hai tiếng trống nhỏ dần.
-    S.drum(T + 0.62, 0.34, 72); S.drum(T + 1.3, 0.2, 72);
-    // Tiếng nền lặng hẳn rồi trở lại chậm.
+    // 1. Đường uy: lính hầu gõ gậy dồn dập, ngừng 80ms trước cú đập.
+    S.staffRoll(t + 0.02, hit - 0.1);
+    // 2. CHÁT.
+    S.crack(T, 0.6);
+    // 3. Mãn đường giai kinh: tiếng nền tắt hẳn, công đường im phăng phắc rồi mới trở lại.
     if (ambStarted && ambBus) {
       ambBus.gain.cancelScheduledValues(t);
-      ambBus.gain.setTargetAtTime(0.03, t, 0.12);
-      ambBus.gain.setTargetAtTime(0.32, T + 3, 1.8);
+      ambBus.gain.setTargetAtTime(0.12, t, 0.2);
+      ambBus.gain.setTargetAtTime(0.0001, T, 0.03);
+      ambBus.gain.setTargetAtTime(0.32, T + 2.2, 1.6);
     }
   },
   // Quạt gõ bàn: tiếng chát gỗ sắc.
