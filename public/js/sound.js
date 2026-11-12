@@ -2,7 +2,7 @@
 // Trình duyệt chỉ cho phát tiếng sau lần chạm hoặc gõ phím đầu tiên, nên mọi thứ khởi động ở unlock().
 // Người dùng tắt/bật bằng nút loa; lựa chọn được nhớ trên máy.
 
-let ctx = null, master = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null, chimeTimer = 0;
+let ctx = null, master = null, sfxBus = null, ambBus = null, noiseBuf = null, brownBuf = null;
 let on = readPref();
 
 function readPref() { try { return localStorage.getItem("tp-sound") !== "off"; } catch { return true; } }
@@ -191,6 +191,48 @@ function drone(c, out, t) {
   return () => { oscs.forEach((o) => o.stop()); lfo.stop(); };
 }
 
+// Chuông gió: ống kim loại cao, bồi âm lệch, gió lùa nên chạm thành chùm.
+const CHIMES = [1174.66, 1318.51, 1479.98, 1760, 1975.53, 2349.32];
+function chimeHit(c, out, t, f, peak) {
+  [[1, 1, 2.6], [2.76, 0.35, 1.4], [5.4, 0.12, 0.7]].forEach(([m, a, dec]) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.frequency.value = f * m * (1 + (Math.random() - 0.5) * 0.002);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * a, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    o.connect(g).connect(out); o.start(t); o.stop(t + dec + 0.05);
+  });
+}
+function windChimes(c, out, t) {
+  const n = 3 + Math.floor(Math.random() * 5);
+  let tt = t;
+  for (let k = 0; k < n; k++) {
+    // Gió lên rồi lặng: giữa chùm chạm dày và mạnh hơn hai đầu.
+    const swell = Math.sin((Math.PI * (k + 0.5)) / n);
+    chimeHit(c, out, tt, CHIMES[Math.floor(Math.random() * CHIMES.length)], 0.03 + 0.05 * swell);
+    tt += 0.07 + Math.random() * 0.28;
+  }
+}
+
+// Mõ chùa vọng từ gian sau: một hồi gõ chậm, đều, cuối hồi dồn nhẹ.
+function moKnock(c, out, t, peak) {
+  const o = c.createOscillator(), g = c.createGain(), o2 = c.createOscillator(), g2 = c.createGain();
+  o.type = "triangle"; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.18);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  o2.frequency.value = 1480; g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(peak * 0.25, t + 0.002); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  o.connect(g).connect(out); o2.connect(g2).connect(out);
+  o.start(t); o.stop(t + 0.25); o2.start(t); o2.stop(t + 0.08);
+}
+function moRound(c, out, t) {
+  const n = 6 + Math.floor(Math.random() * 5);
+  let tt = t, gap = 0.95 + Math.random() * 0.2;
+  for (let k = 0; k < n; k++) {
+    moKnock(c, out, tt, 0.16 * (k === 0 ? 1.2 : 1) * (0.85 + Math.random() * 0.3));
+    if (k >= n - 3) gap *= 0.72; // dồn ở cuối hồi
+    tt += gap;
+  }
+  return tt - t;
+}
+
 // Dựng toàn bộ tiếng nền lên `out`. Trả về { dry, wet } để nối bộ âm lượng.
 function ambienceGraph(c, out) {
   const wet = reverb(c), wetG = c.createGain(), dry = c.createGain();
@@ -201,6 +243,19 @@ function ambienceGraph(c, out) {
 }
 
 let ambStarted = false, ambBusInner = null;
+const ambTimers = [];
+// Mỗi lớp tiếng có nhịp riêng nên không bao giờ lặp đều.
+const LAYERS = [
+  { first: 4000, min: 7000, max: 16000, play: (c, out, t) => (Math.random() < 0.35 ? bowl(c, out, t, Math.random() < 0.5 ? 196 : 146.83, 0.1) : zhengPhrase(c, out, t)) },
+  { first: 9000, min: 13000, max: 26000, play: windChimes },
+  { first: 22000, min: 38000, max: 65000, play: moRound }
+];
+function loop(layer, i, delay) {
+  ambTimers[i] = setTimeout(() => {
+    if (ctx && on && ctx.state === "running") layer.play(ctx, ambBusInner, now() + 0.05);
+    loop(layer, i, layer.min + Math.random() * (layer.max - layer.min));
+  }, delay);
+}
 function startAmbience() {
   if (ambStarted) return; ambStarted = true;
   ambBusInner = ambienceGraph(ctx, ambBus);
@@ -208,18 +263,7 @@ function startAmbience() {
   drone(ctx, ambBusInner, now());
   ambBus.gain.setTargetAtTime(0.32, now(), 2.5);
   bowl(ctx, ambBusInner, now() + 1.5);
-  scheduleChime(4000);
-}
-function scheduleChime(first) {
-  clearTimeout(chimeTimer);
-  chimeTimer = setTimeout(() => {
-    if (ctx && on && ctx.state === "running") {
-      const t = now() + 0.05;
-      if (Math.random() < 0.35) bowl(ctx, ambBusInner, t, Math.random() < 0.5 ? 196 : 146.83, 0.1);
-      else zhengPhrase(ctx, ambBusInner, t);
-    }
-    scheduleChime();
-  }, first ?? 7000 + Math.random() * 9000);
+  LAYERS.forEach((l, i) => loop(l, i, l.first));
 }
 
 // Bản nghe thử: dựng `seconds` giây tiếng nền vào OfflineAudioContext.
@@ -228,12 +272,10 @@ export function renderAmbiencePreview(c, seconds) {
   const bus = ambienceGraph(c, out);
   drone(c, bus, 0);
   bowl(c, bus, 0.8);
-  let t = 3;
-  while (t < seconds - 4) {
-    if (Math.random() < 0.35) bowl(c, bus, t, Math.random() < 0.5 ? 196 : 146.83, 0.1);
-    else zhengPhrase(c, bus, t);
-    t += 7 + Math.random() * 9;
-  }
+  LAYERS.forEach((l) => {
+    // Bản nghe thử ngắn nên rút nhịp lại một nửa để nghe đủ các lớp.
+    for (let t = l.first / 2000; t < seconds - 5; t += (l.min + Math.random() * (l.max - l.min)) / 2000) l.play(c, bus, t);
+  });
 }
 
 // ---------- API cho app.js ----------
