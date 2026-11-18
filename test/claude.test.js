@@ -35,3 +35,12 @@ test("lỗi khác 400 vẫn ném ra để trang rơi về kho câu", async () =>
   c.beta.messages.create = async () => { throw Object.assign(new Error("overloaded"), { status: 529 }); };
   await assert.rejects(makeAsk({}, c)("x", []));
 });
+
+test("câu phán quá dài thì giữ các câu đầu còn vừa 140 ký tự", async () => {
+  const { shorten } = await import("../lib/claude.js");
+  const a = "Đi Đà Lạt. ", b = "Ở nhà ngủ thì tuần nào cũng ngủ được, còn sương Đà Lạt thì không phải tuần nào cũng gặp đâu con ơi. ", c = "Nhớ mang áo ấm, chiều về lạnh lắm, đừng có ra đường mặc áo thun.";
+  assert.equal(shorten(a + b + c), (a + b).trim());
+  assert.ok(shorten(a + b + c).length <= 140);
+  assert.equal(shorten("Ngắn thôi."), "Ngắn thôi.");
+  assert.equal(shorten("x".repeat(200)), null);
+});
