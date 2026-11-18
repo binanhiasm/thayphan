@@ -173,3 +173,10 @@ test("mỗi vé chỉ dùng được số lượt giới hạn", async () => {
   assert.equal((await request(h, { body: { q: "b?" }, headers })).status, 200);
   assert.equal((await request(h, { body: { q: "c?" }, headers })).status, 401);
 });
+
+test("câu AI trả về kèm tên model đã trả lời", async () => {
+  const ask = async () => ({ verdict: "Cà phê.", model: "claude-haiku-5-5" });
+  const h = createPhanHandler({ secret: SECRET, store: memoryStore(), ask, limits, log: quiet });
+  const r = await call(h, { q: "Trà hay cà phê?" });
+  assert.deepEqual([r.verdict, r.source, r.model], ["Cà phê.", "ai", "claude-haiku-5-5"]);
+});
