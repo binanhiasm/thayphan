@@ -33,7 +33,7 @@ Chưa có khoá Claude thì trang vẫn chạy, thầy rút quẻ từ kho câu 
 
 ## Chi phí và các chốt chặn
 
-Mặc định dùng `claude-opus-5-5`, effort `low`, mỗi lần phán khoảng nửa xu Mỹ. Đặt `THAYPHAN_MODEL=claude-haiku-5-5` thì rẻ hơn khoảng 40 lần; nên thử giọng thầy trước khi đổi.
+Mặc định dùng `claude-opus-5-5`, effort `low`. Đo thực tế khoảng 1,4 xu Mỹ mỗi lần phán (8 lần hết $0,11), phần lớn là tiền đọc lời dặn dài cho thầy. Đặt biến `THAYPHAN_MODEL=claude-haiku-5-5` trên Vercel rồi Redeploy để dùng Haiku, rẻ hơn nhiều; nên nghe thử giọng thầy sau khi đổi. Model nào không nhận tuỳ chọn effort thì code tự gọi lại không kèm tuỳ chọn đó.
 
 Server chỉ gọi Claude khi qua hết các chốt sau. Không qua chốt nào thì thầy rút quẻ trong kho, người dùng không thấy lỗi.
 
@@ -46,7 +46,7 @@ Server chỉ gọi Claude khi qua hết các chốt sau. Không qua chốt nào 
 | Câu phán nhớ cho mỗi câu hỏi; nhớ đủ thì xoay vòng | `CACHE_SIZE` | 5 (nhớ 7 ngày) |
 | Lượt AI mỗi ngày cho cả trang | `DAILY_AI_LIMIT` | 2000 |
 
-Với mặc định trên, Opus tốn tối đa khoảng $10/ngày, Haiku khoảng $0,25/ngày.
+Với mặc định trên, Opus có thể tốn tới khoảng $28/ngày nếu dùng hết 2000 lượt. Hạ `DAILY_AI_LIMIT` hoặc dùng Haiku nếu ngân sách tháng nhỏ.
 
 ### Vé hỏi thầy
 
