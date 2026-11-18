@@ -24,16 +24,43 @@ export const VOICE = ["Phở bò tái. Nước trong, lòng nhẹ.", "Cà phê s
 // Ranh giới chữ có dấu tiếng Việt (\b của JS chỉ hiểu chữ không dấu).
 const W = (src) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${src})(?![\\p{L}\\p{N}])`, "iu");
 
-export const RULES = [
-  ["drink", W("uống gì|uống chi|uống nước gì|uống món|đồ uống|nước gì|khát|gọi nước")],
-  ["food", W("ăn gì|ăn chi|ăn trưa|ăn tối|ăn sáng|ăn khuya|bữa trưa|bữa tối|đói|món gì|ăn món")],
-  ["wear", W("mặc gì|mặc đồ|mặc áo|mặc váy|đồ gì")],
-  ["go", W("đi đâu|chơi đâu|cuối tuần làm gì")],
-  ["work", W("nghỉ việc|nghỉ làm|công ty|nhảy việc|thôi việc|xin việc|đổi việc|offer|đi làm|xin nghỉ")],
-  ["love", W("crush|tỏ tình|nhắn|người yêu|người ấy|chia tay|quay lại|hẹn hò|cưới|ny|người cũ")],
-  ["money", W("mua|tiền|chốt đơn|sale|giỏ hàng")],
-  ["boss", W("sếp|cãi|góp ý|tăng lương|nghỉ phép")]
+// Từ khoá nhận ra loại câu hỏi, theo thứ tự ưu tiên (uống đứng trước ăn).
+const KEYWORDS = [
+  ["drink", "Uống gì", "uống gì|uống chi|uống nước gì|uống món|đồ uống|nước gì|khát|gọi nước"],
+  ["food", "Ăn gì", "ăn gì|ăn chi|ăn trưa|ăn tối|ăn sáng|ăn khuya|bữa trưa|bữa tối|đói|món gì|ăn món"],
+  ["wear", "Mặc gì", "mặc gì|mặc đồ|mặc áo|mặc váy|đồ gì"],
+  ["go", "Đi đâu", "đi đâu|chơi đâu|cuối tuần làm gì"],
+  ["work", "Công việc", "nghỉ việc|nghỉ làm|công ty|nhảy việc|thôi việc|xin việc|đổi việc|offer|đi làm|xin nghỉ"],
+  ["love", "Tình cảm", "crush|tỏ tình|nhắn|người yêu|người ấy|chia tay|quay lại|hẹn hò|cưới|ny|người cũ"],
+  ["money", "Mua sắm", "mua|tiền|chốt đơn|sale|giỏ hàng"],
+  ["boss", "Sếp", "sếp|cãi|góp ý|tăng lương|nghỉ phép"]
 ];
+// Nhóm hệ thống: không có từ khoá, dùng cho câu hỏi mở, câu có/không, câu chưa rõ loại.
+const SYSTEM = [["open", "Câu hỏi mở (gì, đâu, nào)"], ["any", "Có/không, dứt khoát"], ["soft", "Chưa rõ loại, khôn ngoan"]];
+export const SYSTEM_GROUPS = SYSTEM.map(([id]) => id);
+
+/** Nhóm câu mặc định. Trang vận hành sửa được; bản sửa lưu trên server và trang tải về qua /api/kho. */
+export const DEFAULT_GROUPS = [
+  ...KEYWORDS.map(([id, name, kw]) => ({ id, name, keywords: kw.split("|"), lines: BANK[id].slice() })),
+  ...SYSTEM.map(([id, name]) => ({ id, name, keywords: [], lines: BANK[id].slice(), system: true }))
+];
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const rulesOf = (groups) => groups.filter((g) => !g.system && g.keywords?.length && g.lines?.length)
+  .map((g) => [g.id, W(g.keywords.map((k) => escapeRe(k.trim())).filter(Boolean).join("|"))]);
+
+export const RULES = rulesOf(DEFAULT_GROUPS);
+
+/** Dùng nhóm câu tải từ server thay cho bản mặc định. Dữ liệu hỏng thì giữ bản đang có. */
+export function setKho(groups) {
+  if (!Array.isArray(groups) || !groups.length) return false;
+  const ok = groups.filter((g) => g && typeof g.id === "string" && Array.isArray(g.lines) && g.lines.every((l) => typeof l === "string"));
+  if (SYSTEM_GROUPS.some((id) => !ok.find((g) => g.id === id && g.lines.length))) return false;
+  for (const k of Object.keys(BANK)) delete BANK[k];
+  for (const g of ok) BANK[g.id] = g.lines.slice();
+  RULES.splice(0, RULES.length, ...rulesOf(ok.map((g) => ({ ...g, keywords: Array.isArray(g.keywords) ? g.keywords.filter((k) => typeof k === "string") : [] }))));
+  return true;
+}
 
 // ---- Những câu thầy không phán bừa ----
 export const HOTLINE = { name: "Đường dây nóng Ngày Mai (hỗ trợ tâm lý)", number: "096 306 1414", tel: "0963061414" };
@@ -60,6 +87,16 @@ export function safety(q) {
 
 export const normKey = (q) => q.toLowerCase().normalize("NFC").replace(/\s+/g, " ").trim();
 
+/** Khoá so khớp câu hỏi: bỏ dấu câu, cụm mở đầu, đuôi "không/ạ…"; "A hay B" và "B hay A" ra cùng khoá. */
+export function matchKey(q) {
+  let s = normKey(String(q)).replace(/[?？!.,…~"“”'():;]+/gu, " ").replace(/\s+/g, " ").trim();
+  for (let prev = ""; prev !== s;) { prev = s; s = s.replace(PREFIX, "").trim(); }
+  for (let prev = ""; prev !== s;) { prev = s; s = s.replace(TAIL, "").trim(); }
+  const parts = s.split(/\s+(?:hay là|hay|hoặc là|hoặc)\s+/u).map((p) => p.trim()).filter(Boolean);
+  return parts.length > 1 ? parts.sort().join(" | ") : s;
+}
+
+const TAIL = /\s+(?:không|ko|hông|ạ|nhỉ|đây|thầy|vậy|nữa|nhé|ta|hả|chứ)$/u;
 const PREFIX = /^(?:thầy ơi|thưa thầy|thầy|con nên|con muốn hỏi|con hỏi|cho con hỏi|có nên|nên chọn(?: ai| cái nào| gì)?|chọn(?: ai| cái nào)?|nên|con)[\s,:]+/iu;
 
 /** "A hay B" -> thầy chọn hẳn một bên, dùng lại chữ của con. */
@@ -86,7 +123,7 @@ export function poolFor(q) {
   const c = choice(q);
   if (c) return c;
   const k = categoryOf(q);
-  if (k) return BANK[k].concat(["food", "drink", "wear", "go"].includes(k) ? [] : BANK.any.slice(0, 4));
+  if (k) return BANK[k].concat(["work", "love", "money", "boss"].includes(k) ? BANK.any.slice(0, 4) : []);
   if (W("gì|đâu|nào|mấy|ai|sao").test(q)) return BANK.open.concat(BANK.soft.slice(0, 2));
   // Câu có/không chưa rõ loại: một nửa dứt khoát, một nửa khôn ngoan.
   return BANK.any.slice(0, 7).concat(BANK.soft);

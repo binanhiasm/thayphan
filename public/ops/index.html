@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Thầy Phán · Vận hành</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<link rel="stylesheet" href="/ops/ops.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side" hidden>
+    <div class="brand"><span class="seal">判</span><div><b>Thầy Phán</b><small>Vận hành</small></div></div>
+    <nav class="nav" id="tabs">
+      <button data-tab="log" class="on"><i class="fi fi-rr-time-past"></i><span>Lịch sử</span></button>
+      <button data-tab="qa"><i class="fi fi-rr-comment-question"></i><span>Câu hỏi riêng</span></button>
+      <button data-tab="groups"><i class="fi fi-rr-apps"></i><span>Nhóm câu</span></button>
+      <button data-tab="members" id="tabMembers" hidden><i class="fi fi-rr-users"></i><span>Thành viên</span></button>
+    </nav>
+    <div class="who" id="who"></div>
+    <button class="nav-out" id="myPw"><i class="fi fi-rr-password"></i><span>Đổi mật khẩu</span></button>
+    <button class="nav-out" id="logout"><i class="fi fi-rr-sign-out-alt"></i><span>Đăng xuất</span></button>
+    <p class="credit">Icon: <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener">Uicons by Flaticon</a></p>
+  </aside>
+  <main id="main"><p class="muted pad">Đang tải…</p></main>
+</div>
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/ops/ops.js"></script>
+</body>
+</html>

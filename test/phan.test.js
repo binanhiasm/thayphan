@@ -8,7 +8,7 @@ import { issueToken } from "../lib/token.js";
 const SECRET = "test-secret", HOST = "thayphan.test";
 
 const quiet = { warn() {} };
-const limits = { ratePerMin: 100, perQuestion: 2, cacheSize: 3, daily: 1000, tokenTtl: 1800, tokenUses: 1000, origins: [] };
+const limits = { aiEvery: 1, ratePerMin: 100, perQuestion: 2, cacheSize: 3, daily: 1000, tokenTtl: 1800, tokenUses: 1000, origins: [] };
 
 function request(handler, { method = "POST", body, ip = "1.1.1.1", headers = {} } = {}) {
   const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
@@ -21,8 +21,7 @@ function request(handler, { method = "POST", body, ip = "1.1.1.1", headers = {} 
 }
 
 // Hỏi như trang thật: có Origin của trang và vé hợp lệ.
-function call(handler, body, ip = "1.1.1.1") {
-  const { token } = issueToken(SECRET, HOST, 30 * 86400); // hạn dài để test đổi ngày vẫn dùng được
+function call(handler, body, ip = "1.1.1.1", token = issueToken(SECRET, HOST, 30 * 86400).token) { // hạn dài để test đổi ngày vẫn dùng được
   return request(handler, { body, ip, headers: { origin: `https://${HOST}`, "x-thay-token": token } });
 }
 
@@ -60,13 +59,17 @@ test("câu hỏi đã nhớ đủ câu phán thì xoay vòng, không gọi AI n�
   const h = createPhanHandler({ secret: SECRET, store: memoryStore(), ask: c.ask, limits, log: quiet });
   for (let i = 0; i < 3; i++) await call(h, { q: "Ăn gì tối nay?" }, `ip${i}`);
   assert.equal(c.calls(), 3);
-  const r = await call(h, { q: "  ăn gì tối nay  " }, "ip9");
+  // Người đã hỏi một câu trước đó (không còn là câu đầu tiên) thì nhận câu đã nhớ.
+  const { token } = issueToken(SECRET, HOST, 3600);
+  await call(h, { q: "Câu khởi động" }, "ip9", token);
+  assert.equal(c.calls(), 4);
+  const r = await call(h, { q: "  ăn gì tối nay  " }, "ip9", token);
   assert.equal(r.source, "cache");
   assert.match(r.verdict, /^câu [123]$/);
   // Câu đã phán cho người này thì không lặp lại.
-  const r2 = await call(h, { q: "Ăn gì tối nay?", prev: ["câu 1", "câu 2"].slice(0, 1) }, "ip9");
+  const r2 = await call(h, { q: "Ăn gì tối nay?", prev: ["câu 1"] }, "ip9", token);
   assert.notEqual(r2.verdict, "câu 1");
-  assert.equal(c.calls(), 3);
+  assert.equal(c.calls(), 4);
 });
 
 test("hết lượt AI trong ngày thì rút quẻ trong kho", async () => {
@@ -179,4 +182,28 @@ test("câu AI trả về kèm tên model đã trả lời", async () => {
   const h = createPhanHandler({ secret: SECRET, store: memoryStore(), ask, limits, log: quiet });
   const r = await call(h, { q: "Trà hay cà phê?" });
   assert.deepEqual([r.verdict, r.source, r.model], ["Cà phê.", "ai", "claude-haiku-5-5"]);
+});
+
+test("câu đầu tiên luôn để AI phán, sau đó xen kẽ AI và kho", async () => {
+  const c = counter();
+  const store = memoryStore();
+  const h = createPhanHandler({ secret: SECRET, store, ask: c.ask, limits: { ...limits, aiEvery: 2 }, log: quiet });
+  const { token } = issueToken(SECRET, HOST, 3600);
+  const srcs = [];
+  for (const q of ["Ăn gì?", "Uống gì?", "Mặc gì?", "Đi đâu?", "Nghỉ việc không?"]) {
+    const r = await call(h, { q }, "1.1.1.1", token);
+    srcs.push(r.source || r.error);
+  }
+  assert.deepEqual(srcs, ["ai", "alternate", "ai", "alternate", "ai"]);
+  assert.equal(c.calls(), 3);
+  // Lượt dành cho kho mà câu hỏi đã có câu AI phán trước đó thì dùng lại câu đó.
+  assert.equal((await call(h, { q: "Ăn gì?" }, "1.1.1.1", token)).source, "cache");
+  assert.equal(c.calls(), 3);
+});
+
+test("câu đầu tiên vẫn gọi AI dù đã có câu đã nhớ", async () => {
+  const c = counter();
+  const h = createPhanHandler({ secret: SECRET, store: memoryStore(), ask: c.ask, limits, log: quiet });
+  for (let i = 0; i < 4; i++) await call(h, { q: "Ăn gì tối nay?" }, `ip${i}`);
+  assert.equal(c.calls(), 4);
 });

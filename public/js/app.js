@@ -1,4 +1,4 @@
-import { safety, makePicker, isCloser, CLOSERS, normKey, HOTLINE } from "./rules.js";
+import { safety, makePicker, isCloser, CLOSERS, normKey, HOTLINE, setKho } from "./rules.js";
 import { sound } from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -6,6 +6,8 @@ const app = $("app"), panel = $("panel"), modal = $("modal");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 const F = { fill: "forwards" };
 const pick = makePicker();
+// Nhóm câu mới nhất do trang vận hành soạn. Tải không được thì dùng kho có sẵn trong rules.js.
+fetch("/api/kho").then((r) => (r.ok ? r.json() : null)).then((j) => j && setKho(j.groups)).catch(() => {});
 
 let lastQ = "", verdict = "", draft = "", view = "idle", lastActivity = Date.now(), stamps = 0;
 const said = {};      // các câu AI đã phán cho từng câu hỏi
@@ -155,7 +157,7 @@ async function getVerdict(q) {
       if (!token) break;
       const r = await fetch("/api/phan", { method: "POST", headers: { "content-type": "application/json", "x-thay-token": token }, body: JSON.stringify({ q, prev }), signal: ctl.signal });
       if (r.status === 401) continue;
-      if (r.ok) { const j = await r.json(); if (j.verdict) { if (j.source === "ai" || j.source === "cache") prev.push(j.verdict); return j.verdict; } }
+      if (r.ok) { const j = await r.json(); if (j.verdict) { if (["ai", "cache", "kho"].includes(j.source)) prev.push(j.verdict); return j.verdict; } }
       break;
     }
   } catch { /* mất mạng hoặc AI lỗi: thầy rút quẻ trong ống */ }

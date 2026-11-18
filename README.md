@@ -29,6 +29,8 @@ Chưa có khoá Claude thì trang vẫn chạy, thầy rút quẻ từ kho câu 
 | `public/js/app.js` | Luồng hỏi và phán, animation, thẻ chia sẻ. |
 | `public/js/sound.js` | Hiệu ứng tổng hợp bằng Web Audio, nhạc nền, nút loa. |
 | `public/audio/nhac-nen.mp3` | Nhạc nền 慢品一盏茶 (bản có bộ gõ). Thay file cùng tên là đổi nhạc; xoá file thì trang tự quay về tiếng nền tổng hợp. |
+| `lib/kho.js`, `api/kho.js` | KHO câu: nhóm câu, câu hỏi riêng, nhật ký. Trang chính tải nhóm câu qua `/api/kho`. |
+| `lib/ops.js`, `lib/members.js`, `api/ops.js`, `public/ops/` | Trang vận hành `/ops/` và thành viên. |
 | `test/` | `npm test`. |
 
 ## Chi phí và các chốt chặn
@@ -42,6 +44,7 @@ Server chỉ gọi Claude khi qua hết các chốt sau. Không qua chốt nào 
 | Lượt hỏi mỗi phút mỗi IP | `RATE_PER_MIN` | 15 |
 | Chỉ nhận request từ chính trang (Origin) và có vé hợp lệ | `TOKEN_TTL`, `TOKEN_USES`, `ALLOWED_ORIGINS` | vé 30 phút, 30 lượt |
 | Câu nhạy cảm trả câu có sẵn | (luôn bật) | |
+| Câu đầu tiên của mỗi người luôn để AI phán; sau đó cứ N câu mới dùng AI một lần, các câu còn lại lấy trong kho | `AI_EVERY` | 2 (xen kẽ AI, kho) |
 | Lượt AI cho mỗi câu hỏi, tính cả hỏi lại | `AI_PER_QUESTION` | 2 |
 | Câu phán nhớ cho mỗi câu hỏi; nhớ đủ thì xoay vòng | `CACHE_SIZE` | 5 (nhớ 7 ngày) |
 | Lượt AI mỗi ngày cho cả trang | `DAILY_AI_LIMIT` | 2000 |
@@ -56,11 +59,20 @@ Cách này chặn được việc trang khác dùng ké API và việc copy requ
 
 Chốt cuối cùng nên đặt thêm: giới hạn chi tiêu theo tháng trong Anthropic Console (Settings → Limits).
 
+## Trang vận hành
+
+`/ops/` dùng để xem lịch sử hỏi đáp (giữ 90 ngày, không lưu IP), soạn câu hỏi riêng (trả lời ngay, không gọi AI) và sửa nhóm câu (dùng khi không gọi AI).
+
+- Bật bằng biến `OPS_PASSWORD` (mật khẩu khởi tạo, quyền admin). Không có biến này thì trang vận hành tắt.
+- Lần đầu: đăng nhập bằng "Dùng mật khẩu khởi tạo", vào mục Thành viên để tạo tài khoản theo email. Hai quyền: **Admin** (làm mọi việc, quản lý thành viên) và **Ops** (lịch sử, câu hỏi riêng, nhóm câu).
+- Mật khẩu thành viên băm bằng scrypt. Đặt lại mật khẩu, đổi quyền hay xoá thì người đó bị đăng xuất ngay. Đổi `OPS_PASSWORD` thì mọi phiên bị đăng xuất.
+- Dữ liệu nằm trong Redis: `kho:groups`, `kho:qa`, `ops:members`, `log:<ngày>`.
+
 ## Đưa lên Vercel
 
 1. Vào Vercel chọn Import repo `binanhiasm/thayphan`, Root Directory để mặc định (`.`). Từ đó mỗi lần push lên `main` Vercel tự deploy, nhánh khác và PR có bản xem thử riêng.
 2. Vào Storage (hoặc Marketplace) của dự án, gắn **Upstash Redis**. Vercel tự điền biến kết nối. Thiếu Redis thì các giới hạn chỉ tính riêng từng lần chạy hàm, gần như vô dụng.
-3. Settings → Environment Variables: thêm `ANTHROPIC_API_KEY` và các biến chốt chặn nếu muốn đổi mặc định.
+3. Settings → Environment Variables: thêm `ANTHROPIC_API_KEY`, `OPS_PASSWORD` (loại Secret, chỉ Production) và các biến chốt chặn nếu muốn đổi mặc định.
 4. Deploy. Trang tĩnh nằm trên CDN, API chạy ở vùng mặc định của Vercel (Mỹ), gần máy chủ Claude.
 
 Muốn chạy y nguyên `server.js` thì dùng Railway hoặc Render: lệnh chạy `npm start`, thêm các biến môi trường như trên. Chạy một máy thì không cần Redis.

@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { makeAsk, MODEL } from "./lib/claude.js";
 import { createPhanHandler, limitsFromEnv, send } from "./lib/phan.js";
 import { storeFromEnv } from "./lib/store.js";
+import { createKhoHandler } from "./lib/kho.js";
+import { createOpsHandler } from "./lib/ops.js";
 import { secretFromEnv } from "./lib/token.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -17,7 +19,10 @@ const PORT = Number(process.env.PORT) || 3000;
 const ask = makeAsk();
 const store = storeFromEnv();
 const limits = limitsFromEnv();
-const handlePhan = createPhanHandler({ store, ask, limits, secret: secretFromEnv() });
+const secret = secretFromEnv();
+const handlePhan = createPhanHandler({ store, ask, limits, secret });
+const handleKho = createKhoHandler({ store });
+const handleOps = createOpsHandler({ store, secret, password: process.env.OPS_PASSWORD });
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".gif": "image/gif", ".mp3": "audio/mpeg" };
 
@@ -29,7 +34,7 @@ function text(res, status, body) {
 async function serveStatic(req, res) {
   let urlPath;
   try { urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { return text(res, 400, "Bad request"); }
-  const file = path.normalize(path.join(PUBLIC, urlPath === "/" ? "index.html" : urlPath));
+  const file = path.normalize(path.join(PUBLIC, urlPath.endsWith("/") ? urlPath + "index.html" : urlPath));
   if (!file.startsWith(PUBLIC + path.sep)) return text(res, 403, "Forbidden");
   try {
     const data = await fs.readFile(file);
@@ -51,6 +56,8 @@ async function serveStatic(req, res) {
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith("/api/phan")) return handlePhan(req, res);
+  if (req.url.startsWith("/api/kho")) return handleKho(req, res);
+  if (req.url.startsWith("/api/ops")) return handleOps(req, res);
   if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "method_not_allowed" });
   return serveStatic(req, res);
 });
