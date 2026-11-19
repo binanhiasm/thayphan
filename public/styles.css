@@ -63,6 +63,7 @@ textarea::placeholder{color:rgba(201,168,130,.6)}
 .chip{flex-shrink:0;padding:7px 12px;border-radius:999px;border:1px solid rgba(201,168,130,.3);background:transparent;color:var(--smoke);font:500 13px var(--body);cursor:pointer}
 .chip:hover{border-color:var(--gold);color:var(--gold)}
 .vow{color:rgba(201,168,130,.8);font-size:12px;font-style:italic;text-align:center;margin:10px 0 0}
+.legal{color:rgba(201,168,130,.55);font-size:11px;text-align:center;margin:6px 0 0}.legal a{color:rgba(227,187,99,.75);text-underline-offset:2px}.legal a:hover{color:var(--gold)}
 .asked{color:var(--smoke);font-size:12px;font-style:italic;text-align:center;margin:0}
 .q{text-align:center;margin:6px 0 14px;font-size:15px;line-height:1.5;color:var(--paper);overflow-wrap:anywhere}
 .dots{display:flex;justify-content:center;gap:7px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:flick .9s infinite}

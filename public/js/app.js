@@ -122,7 +122,8 @@ function idle() {
     <div class="box"><textarea id="q" rows="2" maxlength="140" placeholder="Con nên nghỉ việc không thầy?" aria-label="Câu hỏi cho thầy">${esc(draft)}</textarea>
       <button class="send" id="send" aria-label="Thỉnh thầy" ${draft.trim() ? "" : "disabled"}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button></div>
     <div class="chips">${samples().map((s) => `<button class="chip">${esc(s)}</button>`).join("")}</div>
-    <p class="vow">Thầy phán một câu. Không giải thích. Sai thầy chịu.</p></div>`;
+    <p class="vow">Thầy phán một câu. Không giải thích. Sai thầy chịu.</p>
+    <p class="legal">Câu hỏi được lưu ẩn danh 90 ngày · <a href="/quyen-rieng-tu">Quyền riêng tư</a></p></div>`;
   const ta = $("q"), send = $("send");
   ta.oninput = () => {
     draft = ta.value; send.disabled = !ta.value.trim(); lastActivity = Date.now();

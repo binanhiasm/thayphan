@@ -34,7 +34,9 @@ function text(res, status, body) {
 async function serveStatic(req, res) {
   let urlPath;
   try { urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { return text(res, 400, "Bad request"); }
-  const file = path.normalize(path.join(PUBLIC, urlPath.endsWith("/") ? urlPath + "index.html" : urlPath));
+  // Như cleanUrls của Vercel: /quyen-rieng-tu phục vụ public/quyen-rieng-tu.html.
+  const clean = urlPath.endsWith("/") ? urlPath + "index.html" : path.extname(urlPath) ? urlPath : urlPath + ".html";
+  const file = path.normalize(path.join(PUBLIC, clean));
   if (!file.startsWith(PUBLIC + path.sep)) return text(res, 403, "Forbidden");
   try {
     const data = await fs.readFile(file);
@@ -54,7 +56,12 @@ async function serveStatic(req, res) {
   } catch { text(res, 404, "Không tìm thấy"); }
 }
 
+// Đường dẫn cũ, giống phần redirects trong vercel.json.
+const REDIRECTS = { "/rieng-tu": "/quyen-rieng-tu" };
+
 const server = http.createServer((req, res) => {
+  const to = REDIRECTS[req.url.split("?")[0].replace(/\/$/, "")];
+  if (to) { res.writeHead(308, { location: to }); return res.end(); }
   if (req.url.startsWith("/api/phan")) return handlePhan(req, res);
   if (req.url.startsWith("/api/kho")) return handleKho(req, res);
   if (req.url.startsWith("/api/ops")) return handleOps(req, res);

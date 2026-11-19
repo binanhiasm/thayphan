@@ -3,9 +3,27 @@
   "framework": null,
   "outputDirectory": "public",
   "functions": {
-    "api/phan.js": { "maxDuration": 20 }
+    "api/phan.js": {
+      "maxDuration": 20
+    }
   },
   "headers": [
-    { "source": "/(.*)", "headers": [{ "key": "x-content-type-options", "value": "nosniff" }] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "x-content-type-options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/rieng-tu",
+      "destination": "/quyen-rieng-tu",
+      "permanent": true
+    }
   ]
 }

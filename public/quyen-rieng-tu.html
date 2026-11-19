@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quyền riêng tư · Thầy Phán</title>
+<meta name="description" content="Thầy Phán nhận dữ liệu gì, dùng vào việc gì, giữ bao lâu và gửi cho ai.">
+<meta name="theme-color" content="#140a07">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Display:wght@500;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&text=%E5%88%A4%E7%A7%81&display=swap">
+<style>
+  :root {
+    --ink: #140a07; --wood: #2a160e; --lacquer: #8e2419; --seal: #b3261b; --gold: #e3bb63; --paper: #f1e2bd; --smoke: #c9a882;
+    --line: rgba(227, 187, 99, .18);
+    --display: "Noto Serif Display", "Noto Serif", Georgia, serif;
+    --han: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+    --body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+  body { margin: 0; background: radial-gradient(ellipse at 50% -10%, #3a1a10 0%, var(--ink) 55%) no-repeat, var(--ink); color: var(--paper); font: 16px/1.75 var(--body); -webkit-font-smoothing: antialiased; }
+  a { color: var(--gold); text-underline-offset: 3px; }
+  a:hover { color: #f3d48a; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 64px; }
+  .back { display: inline-flex; align-items: center; gap: 8px; color: var(--smoke); text-decoration: none; font-size: 14px; }
+  .back:hover { color: var(--gold); }
+  header { text-align: center; margin: 28px 0 36px; }
+  .seal { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg, #c2412f, var(--seal)); color: #fff4e0; font: 700 26px var(--han); box-shadow: 0 6px 18px rgba(179, 38, 27, .35); transform: rotate(-4deg); }
+  h1 { font: 700 clamp(28px, 6vw, 40px)/1.2 var(--display); margin: 18px 0 8px; letter-spacing: .01em; color: #f6e7c4; }
+  .meta { color: var(--smoke); font-size: 14px; margin: 0; }
+  .lead { font-size: 17px; color: #ead9b2; }
+  .items { list-style: none; padding: 0; margin: 0 0 8px; }
+  .items li { position: relative; padding: 12px 0 12px 22px; border-top: 1px solid var(--line); margin: 0; }
+  .items li:first-child { border-top: 0; }
+  .items li::before { content: "·"; position: absolute; left: 4px; top: 15px; color: var(--gold); font-size: 22px; line-height: 1; }
+  .box { border: 1px solid var(--line); background: rgba(42, 22, 14, .55); border-radius: 14px; padding: 18px 22px; margin: 22px 0 0; }
+  .box h2 { margin: 0 0 6px; padding: 0; border: 0; font: 600 12px/1.4 var(--body); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  .summary { border: 1px solid var(--line); background: rgba(42, 22, 14, .55); border-radius: 14px; padding: 18px 22px; margin: 26px 0 8px; }
+  .summary h2 { margin-top: 0; border: 0; padding: 0; }
+  .summary ul { margin: 0; padding-left: 20px; }
+  .summary li { margin: 6px 0; }
+  h2 { font: 700 22px/1.35 var(--display); color: #f6e7c4; margin: 40px 0 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+  h2 .no { color: var(--gold); margin-right: 8px; }
+  p { margin: 10px 0; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  strong { color: #fff1d0; font-weight: 600; }
+  .table { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.6; min-width: 560px; }
+  th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-top: 1px solid var(--line); }
+  thead th { border-top: 0; background: rgba(42, 22, 14, .7); color: var(--gold); font-weight: 600; font-size: 13px; letter-spacing: .03em; }
+  .warn { border-left: 3px solid var(--seal); background: rgba(142, 36, 25, .16); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--smoke); margin-left: 6px; white-space: nowrap; }
+  .contact { font: 600 18px var(--body); }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--smoke); font-size: 13.5px; text-align: center; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+  @media (max-width: 600px) {
+    body { font-size: 15.5px; } .summary { padding: 16px; }
+    .table { border: 0; overflow: visible; }
+    table, tbody, tr, td { display: block; min-width: 0; }
+    thead { display: none; }
+    tr { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; padding: 4px 0; background: rgba(42, 22, 14, .45); }
+    td { border: 0; padding: 8px 14px; }
+    td::before { content: attr(data-label); display: block; color: var(--gold); font-size: 12px; font-weight: 600; letter-spacing: .03em; margin-bottom: 2px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Về quán trà của thầy</a>
+
+  <header>
+    <span class="seal" aria-hidden="true">私</span>
+    <h1>Chính sách quyền riêng tư</h1>
+  </header>
+
+  <ul class="items">
+    <li>Thầy Phán <strong>không cần tài khoản</strong>, không quảng cáo, không theo dõi con.</li>
+    <li>Khi con bấm hỏi, thắc mắc được gửi tới Thầy để soạn lời phán. Trên ứng dụng, thắc mắc chỉ được gửi khi con đồng ý; con không đồng ý thì không có gì rời khỏi máy.</li>
+    <li>Thầy giữ thắc mắc và lời phán <strong>90 ngày</strong> để xem lại, rồi tự xoá. Không kèm bất cứ thông tin nào của con.</li>
+    <li>Thắc mắc về tự hại, sức khoẻ, pháp luật, tiền bạc, bạo lực, tôn giáo, chính quyền và các chuyện nhạy cảm khác, Thầy xin phép không trả lời.</li>
+    <li>Thầy không biết con là ai nên không tìm lại được thắc mắc của riêng con. Cần gì cứ hỏi qua mục Liên hệ ở cuối trang.</li>
+  </ul>
+
+  <section class="box" aria-labelledby="giai-tri">
+    <h2 id="giai-tri">Chỉ để giải trí</h2>
+    <p>Thầy Phán là trò chơi giải trí. Lời phán được soạn tự động hoặc rút ngẫu nhiên từ kho câu có sẵn, không dựa trên hoàn cảnh thật của con, không có cơ sở khoa học và không phải lời tiên tri.</p>
+    <p>Lời phán không phải lời khuyên chuyên môn về y tế, sức khoẻ tâm thần, pháp lý, tài chính, đầu tư, nghề nghiệp hay bất kỳ lĩnh vực nào, và không thay cho ý kiến của bác sĩ, luật sư, chuyên gia tài chính hay người có chuyên môn.</p>
+    <p>Mọi quyết định và hệ quả là của con. Trước những việc hệ trọng, hãy hỏi người có chuyên môn và người thân. Thầy Phán không chịu trách nhiệm về bất kỳ thiệt hại nào phát sinh từ việc làm theo lời phán. Câu “sai thầy chịu” chỉ là lời đùa.</p>
+  </section>
+
+  <section class="box" aria-labelledby="lien-he">
+    <h2 id="lien-he">Liên hệ</h2>
+    <p class="contact"><a href="mailto:tran.trungthanh1785@gmail.com">tran.trungthanh1785@gmail.com</a></p>
+  </section>
+
+  <footer>Thầy Phán · <a href="/">Về quán trà</a></footer>
+</div>
+</body>
+</html>
